@@ -224,10 +224,11 @@ void RTPReceiverIONode::initialize_streams(size_t start_id, const std::vector<Re
             m_app_settings.packet_payload_size,
             m_app_settings.packet_app_header_size,
             0, m_app_settings.num_of_packets_in_chunk);
-        m_streams.emplace_back(new AppRTPReceiveStream(stream_settings,
+        m_streams.emplace_back(create_stream(stream_settings,
             m_is_extended_sequence_number,
-            m_app_settings.packet_app_header_size != 0));
-        m_data_consumers.emplace_back(new NullReceiveDataConsumer());
+            m_app_settings.packet_app_header_size != 0,
+            true));
+        m_data_consumers.emplace_back(create_consumer());
     }
 }
 
@@ -238,8 +239,21 @@ void RTPReceiverIONode::assign_streams(size_t start_id, const std::vector<Receiv
     m_streams = std::move(streams);
     m_data_consumers.reserve(m_streams.size());
     for (auto& s : m_streams) {
-        m_data_consumers.emplace_back(new NullReceiveDataConsumer());
+        m_data_consumers.emplace_back(create_consumer());
     }
+}
+
+std::unique_ptr<AppRTPReceiveStream> RTPReceiverIONode::create_stream(const ReceiveStreamSettings& settings,
+    bool is_extended_sequence_number, bool header_data_split, bool process_headers)
+{
+    return std::make_unique<AppRTPReceiveStream>(settings,
+        m_is_extended_sequence_number,
+        m_app_settings.packet_app_header_size != 0, process_headers);
+}
+
+std::unique_ptr<IReceiveDataConsumer> RTPReceiverIONode::create_consumer()
+{
+    return std::make_unique<NullReceiveDataConsumer>();
 }
 
 ReturnStatus RTPReceiverIONode::process_flows(bool is_attach)
