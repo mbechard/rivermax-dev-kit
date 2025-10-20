@@ -136,7 +136,7 @@ protected:
      *
      * @return: Status of the operation.
      */
-    virtual ReturnStatus post_load_settings() { return ReturnStatus::success; };
+    virtual ReturnStatus post_load_settings();
     /**
      * @brief: Initializes memory allocators.
      *

@@ -85,6 +85,7 @@ struct AppSettings
     uint32_t stats_report_interval_ms;
     std::string video_file;
     bool dynamic_video_file_load;
+    bool use_signal_handler;
 public:
     /**
      * @brief: Default destructor.

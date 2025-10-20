@@ -120,6 +120,11 @@ MediaSenderApp::MediaSenderApp(std::shared_ptr<ISettingsBuilder<MediaSenderSetti
 
 ReturnStatus MediaSenderApp::post_load_settings()
 {
+    auto rc = RmaxBaseApp::post_load_settings();
+    if (rc != ReturnStatus::success) {
+        std::cerr << "Failed to initialize media settings" << std::endl;
+        return rc;
+    }
     uint32_t default_packets_in_chunk;
 
     if (m_app_settings->media.resolution == Resolution(UHD_WIDTH, UHD_HEIGHT) ||
@@ -132,7 +137,7 @@ ReturnStatus MediaSenderApp::post_load_settings()
     if (m_app_settings->num_of_packets_in_chunk != default_packets_in_chunk) {
         m_app_settings->num_of_packets_in_chunk_specified = true;
     }
-    auto rc = initialize_media_settings(*m_app_settings);
+    rc = initialize_media_settings(*m_app_settings);
     if (rc != ReturnStatus::success) {
         std::cerr << "Failed to initialize media settings" << std::endl;
     }

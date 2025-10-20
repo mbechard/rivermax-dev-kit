@@ -76,7 +76,7 @@ private:
     static constexpr size_t DEFAULT_NUMBER_OF_MEM_BLOCKS = 10;
     static constexpr size_t DEFAULT_PRINT_TIME_INTERVAL_MS = 1000;
     std::vector<MediaStreamPack> m_stream_packs;
-    MediaSettings m_media_settings;
+    AppSettings m_app_settings;
     std::string m_video_file;
     size_t m_index;
     FourTupleFlow m_network_address;
@@ -104,6 +104,7 @@ private:
     bool m_gpu_enabled;
     bool m_dynamic_video_file_load;
     std::chrono::milliseconds m_print_interval_ms = std::chrono::milliseconds(DEFAULT_PRINT_TIME_INTERVAL_MS);
+    std::atomic<bool> m_stop_requested;
 public:
     /**
      * @brief: MediaSenderIONode constructor.
@@ -201,6 +202,8 @@ public:
      */
     ReturnStatus set_frame_provider(size_t stream_index, std::shared_ptr<IFrameProvider> frame_provider,
         MediaType media_type = MediaType::Video, bool contains_payload = true);
+
+    void stop() { m_stop_requested.store(true); }
 private:
     /**
      * @brief: Creates sender's streams.
@@ -380,6 +383,12 @@ private:
      * @return: Commit timestamp in nanoseconds.
      */
      inline uint64_t get_commit_timestamp_ns(bool first_chunk_in_frame, double send_time_ns, size_t stream_id) const;
+    /**
+     * @brief: Check to see if a stop has been requested, to stop running the thread loop.
+     *
+     * @return: If the worker thread should stop.
+     */
+    bool should_stop() const;
 };
 
 inline uint64_t MediaSenderIONode::get_commit_timestamp_ns(

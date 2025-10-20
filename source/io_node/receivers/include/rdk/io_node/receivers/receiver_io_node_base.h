@@ -106,6 +106,7 @@ protected:
     size_t m_payload_total_memory_size = 0;
     std::vector<std::pair<size_t, size_t>> m_aligned_header_payload_buffers_size;
     uint32_t m_print_interval_ms = 1000;
+    std::atomic<bool> m_stop_requested = false;
 
 public:
     virtual ~ReceiverIONodeBase() = default;
@@ -185,6 +186,13 @@ public:
      * object as it's context.
      */
     virtual void operator()();
+
+    /**
+     * @brief: Tell the worker thread to stop.
+     *
+     * This method will set a flag telling the worker thread to exit out of it's loop.
+     */
+    void stop() { m_stop_requested.store(true); }
 protected:
     /**
      * @brief: ReceiverIONodeBase constructor.
@@ -311,6 +319,13 @@ protected:
      * @return: Status of the operation.
      */
     virtual ReturnStatus synchronous_start() { return wait_first_packet(); };
+
+    /**
+     * @brief: Check to see if a stop has been requested, to stop running the thread loop.
+     *
+     * @return: If the worker thread should stop.
+     */
+    bool should_stop() const;
 };
 
 template<typename StatisticsType, typename StreamType>

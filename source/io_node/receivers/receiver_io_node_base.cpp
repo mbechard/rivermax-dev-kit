@@ -319,7 +319,7 @@ ReturnStatus ReceiverIONodeBase::wait_first_packet()
 {
     ReturnStatus rc = ReturnStatus::success;
     bool initialized = false;
-    while (likely(!initialized && rc != ReturnStatus::failure && SignalHandler::get_received_signal() < 0)) {
+    while (likely(!initialized && rc != ReturnStatus::failure && !should_stop())) {
         for (int i = 0; i < m_streams.size(); i++) {
             auto& stream = m_streams[i];
             auto& chunk = get_stream_chunk(i);
@@ -374,7 +374,7 @@ void ReceiverIONodeBase::operator()()
     }
 
     auto start_time = std::chrono::high_resolution_clock::now();
-    while (likely(rc != ReturnStatus::failure && SignalHandler::get_received_signal() < 0)) {
+    while (likely(rc != ReturnStatus::failure && !should_stop())) {
         for (int i = 0; i < m_streams.size(); i++) {
             auto& stream = m_streams[i];
             auto& chunk = get_stream_chunk(i);
@@ -414,4 +414,9 @@ void ReceiverIONodeBase::operator()()
         std::cerr << "Failed to destroy receiver (" << m_index << ") streams" << std::endl;
         return;
     }
+}
+
+bool ReceiverIONodeBase::should_stop() const
+{
+    return m_stop_requested.load() || (m_app_settings.use_signal_handler && SignalHandler::get_received_signal() >= 0);
 }

@@ -46,7 +46,6 @@ RmaxBaseApp::RmaxBaseApp() :
     m_stats_reader(nullptr),
     m_memory_utils(nullptr)
 {
-    m_signal_handler = m_rivermax_dev_kit.get_signal_handler(true);
     m_gpu_manager = m_rivermax_dev_kit.get_gpu_manager();
 
     memset(&m_local_address, 0, sizeof(m_local_address));
@@ -166,6 +165,13 @@ ReturnStatus RmaxBaseApp::initialize()
     }
 
     return ReturnStatus::obj_init_success;
+}
+
+ReturnStatus RmaxBaseApp::post_load_settings()
+{
+    if (m_app_settings->use_signal_handler)
+		m_signal_handler = m_rivermax_dev_kit.get_signal_handler(true);
+    return ReturnStatus::success;
 }
 
 ReturnStatus RmaxBaseApp::initialize_rivermax_resources()

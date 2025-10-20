@@ -57,4 +57,5 @@ void AppSettings::init_default_values()
     statistics_reader_core = INVALID_CORE_NUMBER;
     stats_report_interval_ms = STATS_REPORT_INTERVAL_MS_DEFAULT;
     dynamic_video_file_load = false;
+    use_signal_handler = true;
 }
