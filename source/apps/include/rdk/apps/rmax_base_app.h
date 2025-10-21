@@ -202,11 +202,19 @@ protected:
      *
      * This method will run application IONodes as the context for @ref std::thread.
      * The IO Node should override the operator () as it's worker method.
+     * This function will block until the threads finish.
      *
      * @param [in] io_nodes: A container of IONodes, it should follow STL containers interface.
      */
     template<typename T>
     void run_threads(T& io_nodes);
+    /**
+     * @brief: Runs application threads, just like run_threads(), but non-blocking.
+     *
+     * @param [in] io_nodes: A container of IONodes, it should follow STL containers interface.
+     */
+    template<typename T>
+    void run_threads_non_blocking(T& io_nodes);
     /**
      * @brief: Runs statistics reader thread.
      *
@@ -244,11 +252,17 @@ protected:
 };
 
 template<typename T>
-void RmaxBaseApp::run_threads(T& io_nodes)
+void RmaxBaseApp::run_threads_non_blocking(T& io_nodes)
 {
     for (auto& io_node : io_nodes) {
         m_threads.push_back(std::thread(std::ref(*io_node)));
     }
+}
+
+template<typename T>
+void RmaxBaseApp::run_threads(T& io_nodes)
+{
+    run_threads_non_blocking(io_nodes);
 
     for (auto& thread : m_threads) {
         thread.join();
