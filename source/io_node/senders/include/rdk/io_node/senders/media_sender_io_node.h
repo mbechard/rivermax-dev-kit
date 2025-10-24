@@ -105,6 +105,7 @@ private:
     bool m_dynamic_video_file_load;
     std::chrono::milliseconds m_print_interval_ms = std::chrono::milliseconds(DEFAULT_PRINT_TIME_INTERVAL_MS);
     std::atomic<bool> m_stop_requested;
+    mutable std::chrono::steady_clock::time_point m_last_print_time;
 public:
     /**
      * @brief: MediaSenderIONode constructor.
@@ -398,11 +399,10 @@ inline uint64_t MediaSenderIONode::get_commit_timestamp_ns(
     if (first_chunk_in_frame && likely(send_time_ns > current_time_ns)) {
         return static_cast<uint64_t>(send_time_ns);
     } else if (unlikely(send_time_ns <= current_time_ns)) {
-        static auto start_time = std::chrono::high_resolution_clock::now();
         auto time_now = std::chrono::high_resolution_clock::now();
-        auto time_elapsed = time_now - start_time;
+        auto time_elapsed = time_now - m_last_print_time;
         if (time_elapsed >= m_print_interval_ms) {
-            start_time = time_now;
+            m_last_print_time = time_now;
             int timeout_ns = current_time_ns - send_time_ns;
             std::cout << "Sender " << m_index << ", Stream " << stream_id
                       << ": Timeout occurred. Send time exceeded by " << timeout_ns << " [ns]." << std::endl;

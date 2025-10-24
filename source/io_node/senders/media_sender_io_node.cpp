@@ -113,7 +113,8 @@ MediaSenderIONode::MediaSenderIONode(
     m_get_time_ns_cb(std::move(time_hanlder_cb)),
     m_gpu_enabled(app_settings->gpu_id != INVALID_GPU_ID),
     m_dynamic_video_file_load(app_settings->dynamic_video_file_load),
-    m_stop_requested(false)
+    m_stop_requested(false),
+    m_last_print_time(std::chrono::high_resolution_clock::now())
 {
     m_stream_packs.resize(num_of_streams);
     m_num_of_memory_blocks = DEFAULT_NUMBER_OF_MEM_BLOCKS;
