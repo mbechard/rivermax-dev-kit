@@ -383,7 +383,7 @@ private:
      *
      * @return: Commit timestamp in nanoseconds.
      */
-     inline uint64_t get_commit_timestamp_ns(bool first_chunk_in_frame, double send_time_ns, size_t stream_id) const;
+     inline uint64_t get_commit_timestamp_ns(bool first_chunk_in_frame, uint64_t send_time_ns, size_t stream_id) const;
     /**
      * @brief: Check to see if a stop has been requested, to stop running the thread loop.
      *
@@ -393,7 +393,7 @@ private:
 };
 
 inline uint64_t MediaSenderIONode::get_commit_timestamp_ns(
-    bool first_chunk_in_frame, double send_time_ns, size_t stream_id) const {
+    bool first_chunk_in_frame, uint64_t send_time_ns, size_t stream_id) const {
     uint64_t current_time_ns = get_time_now_ns();
 
     if (first_chunk_in_frame && likely(send_time_ns > current_time_ns)) {
@@ -403,7 +403,7 @@ inline uint64_t MediaSenderIONode::get_commit_timestamp_ns(
         auto time_elapsed = time_now - m_last_print_time;
         if (time_elapsed >= m_print_interval_ms) {
             m_last_print_time = time_now;
-            int timeout_ns = current_time_ns - send_time_ns;
+            int64_t timeout_ns = current_time_ns - send_time_ns;
             std::cout << "Sender " << m_index << ", Stream " << stream_id
                       << ": Timeout occurred. Send time exceeded by " << timeout_ns << " [ns]." << std::endl;
         }

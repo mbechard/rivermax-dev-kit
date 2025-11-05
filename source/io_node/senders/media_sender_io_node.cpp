@@ -462,16 +462,16 @@ void MediaSenderIONode::operator()()
     * in the same time and keep aligned during the run. It can be updated in the future.
     */
     uint64_t time_now_ns = get_time_now_ns();
-    double send_time_ns = 0;
+    uint64_t send_time_ns = 0;
     for (auto& stream_pack : m_stream_packs) {
         send_time_ns = stream_pack.stream->calculate_send_time_ns(time_now_ns);
         stream_pack.buffer_writer->set_first_packet_timestamp(send_time_ns);
     }
-    const double start_send_time_ns = send_time_ns;
+    const uint64_t start_send_time_ns = send_time_ns;
     size_t sent_mem_block_counter = 0;
     auto get_send_time_ns = [&]() { return (
         start_send_time_ns
-        + m_app_settings.media.frame_field_time_interval_ns
+        + (uint64_t)m_app_settings.media.frame_field_time_interval_ns
         * m_app_settings.media.frames_fields_in_mem_block
         * sent_mem_block_counter);
     };
@@ -526,7 +526,7 @@ void MediaSenderIONode::operator()()
                 }
             }
             if ((chunk_in_frame_counter % m_app_settings.media.chunks_in_frame_field) == 0) {
-                send_time_ns += m_app_settings.media.frame_field_time_interval_ns;
+                send_time_ns += (uint64_t)m_app_settings.media.frame_field_time_interval_ns;
             }
         } while (likely(rc == ReturnStatus::success &&
                         ++chunk_in_frame_counter < m_app_settings.media.chunks_in_frame_field));
