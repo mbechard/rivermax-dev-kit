@@ -42,7 +42,7 @@ static inline std::string ip_version_to_string(AddressType address_type)
 
 SessionDescription::operator json() const
 {
-    return {
+    json result = {
         {"version", m_protocol_version},
         {"origin",
          {{"username", m_username},
@@ -53,11 +53,33 @@ SessionDescription::operator json() const
           {"address", m_unicast_address}}},
         {"name", m_session_name}
     };
+
+    if (!m_groups.empty()) {
+        json groups_array = json::array();
+        for (const auto& group : m_groups) {
+            groups_array.push_back(static_cast<json>(*group));
+        }
+        result["groups"] = std::move(groups_array);
+    }
+
+    return result;
 }
 
 TimeDescription::operator json() const
 {
     return {{"timing", {{"start", m_start_time}, {"stop", m_stop_time}}}};
+}
+
+GroupAttribute::operator json() const
+{
+    std::string mids_str;
+    for (auto& mid : m_mids) {
+        if (!mids_str.empty()) {
+            mids_str += " ";
+        }
+        mids_str += mid;
+    }
+    return {{"type", m_semantics}, {"mids", mids_str}};
 }
 
 SourceFilterAttribute::operator json() const
@@ -134,7 +156,7 @@ json BaseMediaDescription::get_media_format_specific_attribute(const std::vector
         if (!format_specific_str.empty()) {
             format_specific_str.erase(format_specific_str.size() - 2);
         }
-        fmtp_list.push_back({{"payload", format.format}, {"config", std::move(format_specific_str)}});
+        fmtp_list.push_back({{"payload", static_cast<size_t>(format.format)}, {"config", std::move(format_specific_str)}});
     }
 
     return {{"fmtp", std::move(fmtp_list)}};
@@ -145,7 +167,7 @@ json BaseMediaDescription::get_rtp_map_attribute(const std::vector<RTPMapAttribu
     json rtpmap_list = json::array();
     for (const auto& format : formats) {
         rtpmap_list.push_back(
-            {{"payload", format.payload_type},
+            {{"payload", static_cast<size_t>(format.payload_type)},
              {"codec", format.encoding_name},
              {"rate", format.clock_rate},
              {"encoding", format.encoding_parameters}}
@@ -153,4 +175,27 @@ json BaseMediaDescription::get_rtp_map_attribute(const std::vector<RTPMapAttribu
     }
 
     return {{"rtp", rtpmap_list}};
+}
+
+json BaseMediaDescription::get_ptime_attribute(double ptime_ms) const
+{
+    if (ptime_ms == static_cast<int>(ptime_ms)) {
+        return {{"ptime", static_cast<int>(ptime_ms)}};
+    } else {
+        return {{"ptime", ptime_ms}};
+    }
+}
+
+json BaseMediaDescription::get_maxptime_attribute(double maxptime_ms) const
+{
+    if (maxptime_ms == static_cast<int>(maxptime_ms)) {
+        return {{"maxptime", static_cast<int>(maxptime_ms)}};
+    } else {
+        return {{"maxptime", maxptime_ms}};
+    }
+}
+
+json BaseMediaDescription::get_media_id_attribute(const std::string& media_id) const
+{
+    return {{"mid", media_id}};
 }

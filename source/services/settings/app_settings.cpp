@@ -16,11 +16,11 @@
  * limitations under the License.
  */
 
+#include <rivermax_api.h>
 #include "rt_threads.h"
 
 #include "rdk/services/utils/defs.h"
 #include "rdk/services/cli/options.h"
-#include "rdk/services/cpu/affinity/rivermax_affinity.h"
 
 using namespace rivermax::dev_kit::services;
 
@@ -28,6 +28,7 @@ constexpr int INVALID_CORE_NUMBER = -1;
 
 void AppSettings::init_default_values()
 {
+    source_ip = SOURCE_IP_DEFAULT;
     destination_ip = DESTINATION_IP_DEFAULT;
     destination_port = DESTINATION_PORT_DEFAULT;
     num_of_threads = NUM_OF_THREADS_DEFAULT;
@@ -53,9 +54,12 @@ void AppSettings::init_default_values()
     register_memory = false;
     header_data_split = false;
     app_memory_alloc = false;
+    enable_redundancy = false;
     enable_statistics_reader = false;
     statistics_reader_core = INVALID_CORE_NUMBER;
     stats_report_interval_ms = STATS_REPORT_INTERVAL_MS_DEFAULT;
-    dynamic_video_file_load = false;
     use_signal_handler = true;
+    dynamic_media_file_load = false;
+    rx_stream_type = RMX_INPUT_APP_PROTOCOL_PACKET;
+    num_of_packets_in_chunk_specified = false;
 }

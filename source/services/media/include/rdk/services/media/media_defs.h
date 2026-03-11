@@ -1,6 +1,6 @@
 /*
  * SPDX-FileCopyrightText: NVIDIA CORPORATION & AFFILIATES
- * Copyright (c) 2025 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+ * Copyright (c) 2025-2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
  * SPDX-License-Identifier: Apache-2.0
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -19,15 +19,16 @@
 #ifndef RDK_SERVICES_MEDIA_MEDIA_DEFS_H_
 #define RDK_SERVICES_MEDIA_MEDIA_DEFS_H_
 
+#include <chrono>
 #include <cstdint>
-#include <string>
-#include <stdexcept>
 #include <iostream>
 #include <ostream>
+#include <stdexcept>
+#include <string>
 #include <vector>
-#include <chrono>
 
 #include "rdk/services/sdp/sdp_defs.h"
+#include "rdk/services/utils/rational.h"
 
 namespace rivermax
 {
@@ -36,95 +37,12 @@ namespace dev_kit
 namespace services
 {
 /**
- * @brief: Video frame rate.
+ * @brief: Video frame rate type alias.
+ *
+ * FrameRate is a type alias for Rational, representing video frame rates
+ * as rational numbers (e.g., 60000/1001 for 59.94 fps).
  */
-struct FrameRate
-{
-    uint16_t num;
-    uint16_t denom;
-
-    /**
-     * @brief: Video frame rate default constructor.
-     */
-    FrameRate() : num(0), denom(0) {}
-    /**
-    * @brief: Video frame rate constructor.
-    *
-    * @param [in] num: The numerator of the frame rate.
-    * @param [in] denom: The denominator of the frame rate.
-    */
-    FrameRate(uint16_t num, uint16_t denom) : num(num), denom(denom) {}
-    /**
-     * @brief: Video frame rate default constructor.
-     *
-     * @param [in] num: The numerator of the frame rate.
-     */
-     FrameRate(uint16_t num) : num(num), denom(1) {}
-    /**
-     * @brief: Video frame rate constructor.
-     *
-     * @param [in] frame_rate: The frame rate in the format <numerator>/<denominator> or <integer>.
-     */
-    FrameRate(const std::string& frame_rate)
-    {
-        auto is_number = [](const std::string& str) {
-            return str.find_first_not_of("0123456789") == std::string::npos;
-        };
-
-        size_t slash_position = frame_rate.find('/');
-        if (slash_position != std::string::npos) {
-            std::string num_str = frame_rate.substr(0, slash_position);
-            std::string denom_str = frame_rate.substr(slash_position + 1);
-            if (is_number(num_str) && is_number(denom_str)) {
-                num = static_cast<uint16_t>(std::stoi(num_str));
-                denom = static_cast<uint16_t>(std::stoi(denom_str));
-                return;
-            }
-        } else if (is_number(frame_rate)) {
-            num = static_cast<uint16_t>(std::stoi(frame_rate));
-            denom = 1;
-            return;
-        }
-        throw std::invalid_argument("Invalid frame rate format. Expected <numerator>/<denominator> or <integer>");
-    }
-    /**
-     * @brief: Converts the frame rate to a string.
-     *
-     * @return: The string representation of the frame rate.
-     */
-    operator std::string() const
-    {
-        return (denom == 1) ? std::to_string(num) : std::to_string(num) + "/" + std::to_string(denom);
-    }
-    /**
-     * @brief: Output stream operator.
-     *
-     * @param [in] os: The output stream.
-     * @param [in] frame_rate: The frame rate.
-     *
-     * @return: The output stream.
-     */
-    friend std::ostream& operator<<(std::ostream& os, const FrameRate& frame_rate) {
-        os << std::string(frame_rate);
-        return os;
-    }
-    /**
-     * @brief: Equality operator.
-     *
-     * @param [in] other: The other frame rate.
-     *
-     * @return: True if the frame rates are equal, false otherwise.
-     */
-    bool operator==(const FrameRate& other) const { return num == other.num && denom == other.denom; }
-    /**
-     * @brief: Inequality operator.
-     *
-     * @param [in] other: The other frame rate.
-     *
-     * @return: True if the frame rates are not equal, false otherwise.
-     */
-    bool operator!=(const FrameRate& other) const { return !(*this == other); }
-};
+using FrameRate = Rational;
 /**
  * @brief: Video Resolution.
  */
@@ -202,16 +120,83 @@ struct Resolution
      */
     bool operator!=(const Resolution& other) const { return !(*this == other); }
 };
+/**
+ * @brief: Ancillary data identifier (DID/SDID pair).
+ */
+ struct AncillaryDataIdentifier
+ {
+     uint8_t did;
+     uint8_t sdid;
+
+     bool operator==(const AncillaryDataIdentifier& other) const
+     {
+         return did == other.did && sdid == other.sdid;
+     }
+     bool operator!=(const AncillaryDataIdentifier& other) const
+     {
+         return !(*this == other);
+     }
+     /**
+      * @brief: Output stream operator to print identifier.
+      *
+      * Format: "0xDID:0xSDID" (e.g. "0x60:0x60")
+      *
+      * @param [in] os: The output stream.
+      * @param [in] id: The ancillary data identifier.
+      *
+      * @return: The output stream.
+      */
+     friend std::ostream& operator<<(std::ostream& os, const AncillaryDataIdentifier& id)
+     {
+         os << "0x" << std::hex << static_cast<int>(id.did) << ":0x" << static_cast<int>(id.sdid) << std::dec;
+         return os;
+     }
+     /**
+      * @brief: Input stream operator to parse identifier from string.
+      *
+      * Format: "0xDID:0xSDID" (e.g. "0x60:0x60")
+      *
+      * @param [in] is: The input stream.
+      * @param [out] id: The ancillary data identifier.
+      *
+      * @return: The input stream.
+      */
+     friend std::istream& operator>>(std::istream& is, AncillaryDataIdentifier& id)
+     {
+         std::string token;
+         is >> token;
+         size_t colon_pos = token.find(':');
+         if (colon_pos != std::string::npos) {
+             id.did = static_cast<uint8_t>(std::stoul(token.substr(0, colon_pos), nullptr, 0));
+             id.sdid = static_cast<uint8_t>(std::stoul(token.substr(colon_pos + 1), nullptr, 0));
+         }
+         return is;
+     }
+ };
 
 /* Time constants */
 constexpr size_t NS_IN_SEC = std::chrono::nanoseconds{ std::chrono::seconds{ 1 } }.count();
 constexpr size_t NS_IN_USEC = std::chrono::nanoseconds{ std::chrono::microseconds{ 1 } }.count();
+constexpr size_t NS_IN_MSEC = std::chrono::nanoseconds{ std::chrono::milliseconds{ 1 } }.count();
+constexpr size_t USEC_IN_SEC = std::chrono::microseconds{ std::chrono::seconds{ 1 } }.count();
 constexpr uint8_t LEAP_SECONDS = 37;
+constexpr uint64_t DEFAULT_STREAM_START_OFFSET_NS = NS_IN_SEC;
+/* Bit masks and sizes */
+constexpr size_t BYTE_SIZE_BITS = 8;
+constexpr size_t WORD_SIZE_BITS = 32;
+constexpr uint32_t MASK_7BIT = 0x7F;
+constexpr uint32_t MASK_8BIT = 0xFF;
+constexpr uint32_t MASK_9BIT = 0x1FF;
+constexpr uint32_t MASK_10BIT = 0x3FF;
+constexpr uint32_t MASK_11BIT = 0x7FF;
+constexpr uint32_t MASK_12BIT = 0xFFF;
 /* Resolution constants */
-constexpr size_t FHD_WIDTH = 1920;
-constexpr size_t FHD_HEIGHT = 1080;
-constexpr size_t UHD_WIDTH = 3840;
-constexpr size_t UHD_HEIGHT = 2160;
+constexpr size_t _1080_WIDTH = 1920;
+constexpr size_t _1080_HEIGHT = 1080;
+constexpr size_t _2160_WIDTH = 3840;
+constexpr size_t _2160_HEIGHT = 2160;
+constexpr size_t _4320_WIDTH = 7680;
+constexpr size_t _4320_HEIGHT = 4320;
 /* RTP header constants */
 constexpr size_t RTP_HEADER_EXT_SEQ_NUM_SIZE = 2;
 constexpr size_t RTP_HEADER_SRD_MIN_SIZE = RTP_HEADER_EXT_SEQ_NUM_SIZE + 2;  // When first SRD length is 0
@@ -223,24 +208,55 @@ constexpr size_t RTP_HEADER_CSRC_GRANULARITY_BYTES = 4;
 constexpr size_t RTP_SINGLE_SRD_HEADER_SIZE = RTP_HEADER_SRD_SIZE + RTP_HEADER_EXT_SEQ_NUM_SIZE;
 constexpr size_t RTP_ST_2110_20_SINGLE_SRD_HEADER_SIZE = \
     RTP_HEADER_SIZE + RTP_SINGLE_SRD_HEADER_SIZE;
+constexpr size_t RTP_ST_2110_40_HEADER_EXT_SIZE = 8;
+constexpr size_t RTP_ST_2110_40_ANCILLARY_HEADER_SIZE = \
+    RTP_HEADER_SIZE + RTP_ST_2110_40_HEADER_EXT_SIZE;
+constexpr size_t RTP_ST_2110_40_FIXED_DATA_HEADER_SIZE = 4;
+constexpr size_t RTP_ST_2110_40_DID_WORD_COUNT = 1;
+constexpr size_t RTP_ST_2110_40_SDID_WORD_COUNT = 1;
+constexpr size_t RTP_ST_2110_40_DATA_COUNT_WORD_COUNT = 1;
+constexpr size_t RTP_ST_2110_40_DATA_WORD_SIZE_BITS = 10;
+constexpr size_t RTP_ST_2110_40_CHECKSUM_SIZE_BITS = 10;
+constexpr size_t RTP_ST_2110_40_PARITY_BIT_POSITION = 8;
+constexpr size_t RTP_ST_2110_40_INVERSE_PARITY_BIT_POSITION = 9;
+constexpr size_t RTP_ST_2110_40_C_FLAG_BIT_POSITION = 31;
+constexpr size_t RTP_ST_2110_40_LINE_NUMBER_BIT_POSITION = 20;
+constexpr size_t RTP_ST_2110_40_HORIZONTAL_OFFSET_BIT_POSITION = 8;
+constexpr size_t RTP_ST_2110_40_S_FLAG_BIT_POSITION = 7;
+constexpr size_t RTP_ST_2110_40_CHECKSUM_MSB_POSITION = 8;
+constexpr size_t RTP_ST_2110_40_CHECKSUM_INVERSE_BIT_POSITION = 9;
 constexpr uint32_t RTP_SEQUENCE_NUMBER_MASK_16BIT = 0xFFFF;
 constexpr uint32_t RTP_SEQUENCE_NUMBER_MASK_32BIT = 0xFFFFFFFF;
+constexpr uint8_t RTP_VERSION_MASK = 0xC0;
+constexpr uint8_t RTP_VERSION_2 = 0x80;
+constexpr uint8_t RTP_M_BIT_MASK = 0x80;
 /* Video constants */
 constexpr size_t VIDEO_TRO_DEFAULT_MODIFICATION = 2;
+/* Ancillary data constants */
+constexpr size_t DEFAULT_ANCILLARY_DATA_PACKETS_PER_PACKET = 10;
+constexpr size_t DEFAULT_ANCILLARY_DATA_WORDS_COUNT = 128;
+constexpr AncillaryDataIdentifier ANCILLARY_TIMECODE_IDENTIFIER = {0x60, 0x60};
+constexpr AncillaryDataIdentifier ANCILLARY_AFD_IDENTIFIER = {0x41, 0x05};
+constexpr AncillaryDataIdentifier ANCILLARY_CLOSED_CAPTION_IDENTIFIER = {0x61, 0x01};
 /* Supported video resolutions */
 const std::vector<Resolution> SUPPORTED_VIDEO_RESOLUTIONS = {
-    { FHD_WIDTH, FHD_HEIGHT },
-    { UHD_WIDTH, UHD_HEIGHT },
-    { FHD_HEIGHT, FHD_WIDTH },
-    { UHD_HEIGHT, UHD_WIDTH }
+    { _1080_WIDTH, _1080_HEIGHT },
+    { _2160_WIDTH, _2160_HEIGHT },
+    { _4320_WIDTH, _4320_HEIGHT },
+    { _1080_HEIGHT, _1080_WIDTH },
+    { _2160_HEIGHT, _2160_WIDTH },
+    { _4320_HEIGHT, _4320_WIDTH }
 };
 /* Supported video frame rates */
 const std::vector<FrameRate> SUPPORTED_VIDEO_FRAME_RATES = {
-    { 24 },
-    { 25 },
-    { 30 },
-    { 50 },
-    { 60 }
+    { 24000, 1001 },  /**< 23.976 fps */
+    { 24 },           /**< 24 fps */
+    { 25 },           /**< 25 fps */
+    { 30000, 1001 },  /**< 29.97 fps */
+    { 30 },           /**< 30 fps */
+    { 50 },           /**< 50 fps */
+    { 60000, 1001 },  /**< 59.94 fps */
+    { 60 }            /**< 60 fps */
 };
 /* Supported video sampling types */
 const std::vector<VideoSampling> SUPPORTED_VIDEO_SAMPLING_TYPES = {
@@ -249,42 +265,26 @@ const std::vector<VideoSampling> SUPPORTED_VIDEO_SAMPLING_TYPES = {
     VideoSampling::YCbCr_4_2_0,
     VideoSampling::RGB
 };
-/* Supported video bit depths */
-const std::vector<ColorBitDepth> SUPPORTED_VIDEO_BIT_DEPTHS = {
-    ColorBitDepth::_8,
-    ColorBitDepth::_10,
-    ColorBitDepth::_12
+/* Supported video scan types */
+const std::vector<VideoScanType> SUPPORTED_VIDEO_SCAN_TYPES = {
+    VideoScanType::Progressive,
+    VideoScanType::Interlaced
 };
 /**
- * @brief: Application media related settings.
- *
- * The struct will be used to hold application media parameters required
- * for the application to operate as requested by the user.
+ * @brief: Enum class for SMPTE Media content types.
  */
-struct MediaSettings
+enum class SMPTEStandard
 {
-    std::string sdp;
-    uint32_t media_block_index = 0;
-    FrameRate frame_rate;
-    Resolution resolution = { FHD_WIDTH, FHD_HEIGHT };
-    VideoSampling sampling_type = VideoSampling::YCbCr_4_2_2;
-    ColorBitDepth bit_depth = ColorBitDepth::_10;
-    VideoScanType video_scan_type = VideoScanType::Progressive;
-    SenderType sender_type = SenderType::_2110TPN;
-    size_t sample_rate = 90000;
-    uint32_t packets_in_frame_field = 0;
-    size_t packets_in_line = 0;
-    double frame_field_time_interval_ns = 0;
-    double ticks_per_frame = 0;
-    size_t lines_in_frame_field = 0;
-    size_t chunks_in_frame_field = 0;
-    size_t frames_fields_in_mem_block = 0;
-    std::string refclk;
-    size_t bytes_per_frame = 0;
-    size_t protocol_header_size = 0;
-    size_t raw_packet_payload_size = 0;
-    uint8_t payload_type = 96;
-    uint16_t pixels_per_packet = 0;
+    ST_2110_20,
+    ST_2110_30,
+    ST_2110_40,
+    Unknown
+};
+ /* Supported video bit depths */
+const std::vector<VideoBitDepth> SUPPORTED_VIDEO_BIT_DEPTHS = {
+    VideoBitDepth::_8,
+    VideoBitDepth::_10,
+    VideoBitDepth::_12
 };
 
 }  // namespace services

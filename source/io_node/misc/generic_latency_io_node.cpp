@@ -55,8 +55,7 @@ GenericLatencyIONode::GenericLatencyIONode(
 
 std::ostream& GenericLatencyIONode::print(std::ostream& out) const
 {
-    out << "+#############################################\n"
-        << "| Thread ID: 0x" << std::hex << std::this_thread::get_id() << std::dec << "\n"
+    out << "| Thread ID: 0x" << std::hex << std::this_thread::get_id() << std::dec << "\n"
         << "| CPU core affinity: " << m_cpu_core_affinity << "\n"
         << "| Tx Header address: " << m_send_header_region.addr << "\n"
         << "| Tx Header length: " << m_send_header_region.length << "[B]" << "\n"
@@ -69,12 +68,11 @@ std::ostream& GenericLatencyIONode::print(std::ostream& out) const
         << "| Rx Header key: " << m_receive_header_region.mkey << "\n"
         << "| Rx Payload address: " << m_receive_payload_region.addr << "\n"
         << "| Rx Payload length: " << m_receive_payload_region.length << "[B]" << "\n"
-        << "| Rx Payload key: " << m_receive_payload_region.mkey << "\n"
-        << "+#############################################\n";
+        << "| Rx Payload key: " << m_receive_payload_region.mkey << "\n";
     return out;
 }
 
-void GenericLatencyIONode::initialize_send_stream()
+ReturnStatus GenericLatencyIONode::initialize_send_stream()
 {
     if (m_gpu_direct_tx && (m_send_dim.header_size == 0)) {
         m_send_dim.header_size = RTP_HEADER_SIZE;
@@ -90,6 +88,7 @@ void GenericLatencyIONode::initialize_send_stream()
             static_cast<uint16_t>(m_send_dim.header_size));
 
     m_send_stream = std::shared_ptr<GenericSendStream>(new GenericSendStream(settings));
+    return ReturnStatus::success;
 }
 
 ReturnStatus GenericLatencyIONode::query_memory_size(size_t& tx_header_size, size_t& tx_payload_size,
@@ -123,9 +122,13 @@ void GenericLatencyIONode::print_parameters()
         return;
     }
     std::stringstream text_parameters;
+    text_parameters << "+#############################################\n";
     text_parameters << this;
+    text_parameters << "+---------------------------------------------\n";
     text_parameters << *m_send_stream;
+    text_parameters << "+---------------------------------------------\n";
     text_parameters << *m_receive_stream;
+    text_parameters << "+---------------------------------------------\n";
     std::cout << text_parameters.str() << std::endl;
 }
 
@@ -748,6 +751,11 @@ void FrameIONode::parse_packet_headers(ReceiveChunk& chunk, bool& has_last_packe
     } else {
         header_ptr = static_cast<const uint8_t*>(chunk.get_payload_ptr());
         stride_size = m_receive_stream->get_payload_stride_size();
+    }
+    if (unlikely(header_ptr == nullptr)) {
+        std::cerr << "Error, no header pointer in the chunk" << std::endl;
+        valid = false;
+        return;
     }
     auto strides_cnt = chunk.get_length();
     auto packets_in_frame = m_receive_dim.num_of_chunks * m_receive_dim.num_of_packets_in_chunk;

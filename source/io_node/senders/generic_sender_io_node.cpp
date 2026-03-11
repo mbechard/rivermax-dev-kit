@@ -62,8 +62,7 @@ std::ostream& AppGenericSendStream::print(std::ostream& out) const
 {
     GenericSendStream::print(out);
 
-    out << "| Number of flows: " << m_send_flows.size() << "\n"
-        << "+**********************************************\n";
+    out << "| Number of flows: " << m_send_flows.size() << "\n";
 
     return out;
 }
@@ -82,7 +81,6 @@ GenericSenderIONode::GenericSenderIONode(
     std::shared_ptr<AppSettings> app_settings,
     size_t index, size_t num_of_streams, int cpu_core_affinity,
     std::shared_ptr<MemoryUtils> mem_utils) :
-    m_media_settings(app_settings->media),
     m_index(index),
     m_num_of_streams(num_of_streams),
     m_sleep_between_operations_us(app_settings->sleep_between_operations_us),
@@ -107,15 +105,13 @@ GenericSenderIONode::GenericSenderIONode(
 
 std::ostream& GenericSenderIONode::print(std::ostream& out) const
 {
-    out << "+#############################################\n"
-        << "| Sender index: " << m_index << "\n"
+    out << "| Sender index: " << m_index << "\n"
         << "| Thread ID: 0x" << std::hex << std::this_thread::get_id() << std::dec << "\n"
         << "| CPU core affinity: " << m_cpu_core_affinity << "\n"
         << "| Number of streams in this thread: " << m_streams.size() << "\n"
         << "| Memory address: " << m_mem_region.addr << "\n"
         << "| Memory length: " << m_mem_region.length << "[B]" << "\n"
-        << "| Memory key: " << m_mem_region.mkey << "\n"
-        << "+#############################################\n";
+        << "| Memory key: " << m_mem_region.mkey << "\n";
     return out;
 }
 
@@ -191,9 +187,12 @@ void GenericSenderIONode::print_parameters()
         return;
     }
     std::stringstream sender_parameters;
+    sender_parameters << "+#############################################\n";
     sender_parameters << this;
+    sender_parameters << "+---------------------------------------------\n";
     for (auto& stream : m_streams) {
         sender_parameters << *stream;
+        sender_parameters << "+---------------------------------------------\n";
     }
     std::cout << sender_parameters.str() << std::endl;
 }

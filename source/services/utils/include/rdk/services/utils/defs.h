@@ -43,7 +43,36 @@ namespace services
     align_down_pow2((_n) + (_alignment) - 1, _alignment)
 
 typedef uint8_t byte_t;
-
+/**
+ * @brief: Macro to check a condition and return a status with an error message.
+ *
+ * Evaluates the condition, and if true, displays the error message and returns the specified status.
+ * Useful for early exits in functions with error handling. Meant to be used mainly
+ * in the examples.
+ *
+ * @param [in] condition: Condition to evaluate.
+ * @param [in] message: Error message to display if the condition is true.
+ * @param [in] status: Status to return if the condition is true.
+ */
+#define RETURN_STATUS_IF(condition, message, status) \
+    do {                                             \
+        if (condition) {                             \
+            std::cerr << message << std::endl;       \
+            return status;                           \
+        }                                            \
+    } while (0)
+/**
+ * @brief: Macro to check if a status is not successful and return with failure status.
+ *
+ * Evaluates if the status is not equal to @ref ReturnStatus::success, and if true,
+ * displays the error message and returns @ref ReturnStatus::failure. Meant to be used mainly
+ * in the examples.
+ *
+ * @param [in] condition: Status variable to check.
+ * @param [in] message: Error message to display if the status is not successful.
+ */
+#define RETURN_FAILURE_ON_ERROR(condition, message) RETURN_STATUS_IF( \
+    condition != ReturnStatus::success, message, ReturnStatus::failure)
 /**
  * @brief: Packet pacing rate.
  */
@@ -80,6 +109,41 @@ void set_bitmap_bit(T (&bitmap)[S], size_t bit)
     auto offset = bit % bit_size;
     bitmap[index] |= ((T)1) << offset;
 }
+/**
+ * @brief: Byte memory literal operator.
+ *
+ * In this operator, the value is treated as bytes, but no conversion is done.
+ * The value is returned as-is. Useful for defining byte values in a more readable way.
+ *
+ * @param [in] value: Value to convert to bytes.
+ *
+ * @return: Value in bytes.
+ */
+constexpr size_t operator"" _B(unsigned long long value) { return value; }
+/**
+ * @brief: Kilobyte memory literal operator.
+ *
+ * @param [in] value: Value to convert to kilobytes.
+ *
+ * @return: Value in kilobytes.
+ */
+constexpr size_t operator"" _KB(unsigned long long value) { return value << 10; }
+/**
+ * @brief: Megabyte memory literal operator.
+ *
+ * @param [in] value: Value to convert to megabytes.
+ *
+ * @return: Value in megabytes.
+ */
+constexpr size_t operator"" _MB(unsigned long long value) { return value << 20; }
+/**
+ * @brief: Gigabyte memory literal operator.
+ *
+ * @param [in] value: Value to convert to gigabytes.
+ *
+ * @return: Value in gigabytes.
+ */
+constexpr size_t operator"" _GB(unsigned long long value) { return value << 30; }
 
 } // namespace services
 } // namespace dev_kit

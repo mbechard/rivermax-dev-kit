@@ -1,6 +1,6 @@
 /*
  * SPDX-FileCopyrightText: NVIDIA CORPORATION & AFFILIATES
- * Copyright (c) 2025 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+ * Copyright (c) 2025-2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
  * SPDX-License-Identifier: Apache-2.0
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -16,31 +16,31 @@
  * limitations under the License.
  */
 
-#include <memory>
 #include <cstring>
 #include <map>
+#include <memory>
+#include <rivermax_api.h>
 #include <vector>
 
-#include "CLI/CLI.hpp"
 #include "rt_threads.h"
 
+#include "rdk/services/cli/cli_manager.h"
+#include "rdk/services/cli/options.h"
+#include "rdk/services/cli/validators.h"
+#include "rdk/services/media/media.h"
 #include "rdk/services/sdp/sdp_defs.h"
 #include "rdk/services/utils/defs.h"
-#include "rdk/services/media/media.h"
-#include "rdk/services/cli/options.h"
-#include "rdk/services/cli/cli_manager.h"
-#include "rdk/services/cli/validators.h"
 
 using namespace rivermax::dev_kit::services;
 
 const char* CLIOptStr::LOCAL_IP = "-l,--local-ip";
-const char* CLIOptStr::LOCAL_IPS = "-l,--local-ips";
+const char* CLIOptStr::LOCAL_IPS = "--li,--local-ips";
 const char* CLIOptStr::SRC_IP = "-s,--src-ip";
-const char* CLIOptStr::SRC_IPS = "-s,--src-ips";
+const char* CLIOptStr::SRC_IPS = "--si,--src-ips";
 const char* CLIOptStr::DST_IP = "-d,--dst-ip";
-const char* CLIOptStr::DST_IPS = "-d,--dst-ips";
+const char* CLIOptStr::DST_IPS = "--di,--dst-ips";
 const char* CLIOptStr::DST_PORT = "-p,--dst-port";
-const char* CLIOptStr::DST_PORTS = "-p,--dst-ports";
+const char* CLIOptStr::DST_PORTS = "--dp,--dst-ports";
 const char* CLIOptStr::THREADS = "-T,--threads";
 const char* CLIOptStr::FLOWS = "-F,--flows";
 const char* CLIOptStr::STREAMS = "-S,--streams";
@@ -67,14 +67,31 @@ const char* CLIOptStr::ENABLE_STATS_READER = "--esr,--enable-stats-reader";
 const char* CLIOptStr::STATS_CORE = "-R,--statistics-core";
 const char* CLIOptStr::STATS_SESSION_ID = "-P,--session-id-stats";
 const char* CLIOptStr::STATS_REPORT_INTERVAL = "-I,--stats-interval";
+const char* CLIOptStr::RX_STREAM_TYPE = "-R,--rx-stream-type";
 const char* CLIOptStr::VIDEO_RESOLUTION = "--vr,--video-resolution";
 const char* CLIOptStr::VIDEO_FRAME_RATE = "--vfr,--video-frame-rate";
 const char* CLIOptStr::VIDEO_SAMPLING = "--vs,--video-sampling";
+const char* CLIOptStr::VIDEO_SCAN_TYPE = "--vst,--video-scan-type";
 const char* CLIOptStr::VIDEO_BIT_DEPTH = "--vbd,--video-bit-depth";
+const char* CLIOptStr::ALPHA_BIT_DEPTH = "--abd,--alpha-bit-depth";
+const char* CLIOptStr::ENABLE_VIDEO = "--enable-video";
+const char* CLIOptStr::ENABLE_ALPHA = "--enable-alpha";
+const char* CLIOptStr::ENABLE_AUDIO = "--enable-audio";
+const char* CLIOptStr::ENABLE_ANCILLARY = "--enable-ancillary";
 const char* CLIOptStr::VIDEO_FILE = "--vf,--video-file";
+const char* CLIOptStr::AUDIO_FILE = "--af,--audio-file";
+const char* CLIOptStr::ANCILLARY_FILE = "--anf,--ancillary-file";
 const char* CLIOptStr::DYNAMIC_FILE_LOADING = "--dfl,--dynamic-file-loading";
+const char* CLIOptStr::PTIME_US = "--apu,--audio-ptime-us";
+const char* CLIOptStr::AUDIO_SAMPLING_RATE = "--asr,--audio-sampling-rate";
+const char* CLIOptStr::AUDIO_ENCODING = "--ae,--audio-encoding";
+const char* CLIOptStr::ANCILLARY_TYPES = "--ant,--ancillary-types";
+const char* CLIOptStr::ANCILLARY_DATA_WORDS_COUNT = "--adwc,--ancillary-data-words-count";
+const char* CLIOptStr::ENABLE_REDUNDANCY = "--er,--enable-redundancy";
 
 const char* CLIGroupStr::VIDEO_FORMAT_OPTIONS = "Video format options";
+const char* CLIGroupStr::AUDIO_FORMAT_OPTIONS = "Audio format options";
+const char* CLIGroupStr::ANCILLARY_FORMAT_OPTIONS = "Ancillary format options";
 
 /**
  * @note: TODO: GPU related options are handled awkwardly and should be improved.
@@ -92,6 +109,28 @@ static const std::map<std::string, AllocatorTypeUI> UI_ALLOCATOR_TYPES{
     { "gpuhostpinned",     AllocatorTypeUI::GPUHostPinned },
 #endif
 };
+
+/**
+ * @brief: RX stream types mapping to string.
+ *
+ * Maps string representations to @ref rmx_input_stream_params_type enum values.
+ */
+static const std::map<std::string, rmx_input_stream_params_type> UI_RX_STREAM_TYPES{
+    { "raw",          RMX_INPUT_RAW_PACKET },
+    { "app-protocol", RMX_INPUT_APP_PROTOCOL_PACKET }
+};
+
+/**
+ * @brief: Ancillary data types mapping to string.
+ *
+ * Maps string representations to @ref AncillaryDataIdentifier.
+ */
+static const std::map<std::string, AncillaryDataIdentifier> UI_ANCILLARY_TYPES{
+    { "timecode", ANCILLARY_TIMECODE_IDENTIFIER },
+    { "afd",      ANCILLARY_AFD_IDENTIFIER },
+    { "cc",       ANCILLARY_CLOSED_CAPTION_IDENTIFIER }
+};
+
 /**
  * @brief: Create a string to Enum mapping vector.
  *
@@ -126,7 +165,8 @@ cli_opt_factory_map_t CLIParserManager::s_cli_opt_fuctory {
         {
             return parser->add_option(CLIOptStr::LOCAL_IP,
                                       app_settings->local_ip,
-                                      "Local IP of the NIC")->check(CLI::ValidIPV4)->required();
+                                      "Local IP of the NIC")
+                            ->check(CLI::ValidIPV4);
         }
     },
     {
@@ -137,8 +177,7 @@ cli_opt_factory_map_t CLIParserManager::s_cli_opt_fuctory {
                                       app_settings->local_ips,
                                       "Local IPs of the NICs (comma-separated)")
                             ->delimiter(',')
-                            ->check(CLI::ValidIPV4)
-                            ->required();
+                            ->check(CLI::ValidIPV4);
         }
     },
     {
@@ -148,7 +187,7 @@ cli_opt_factory_map_t CLIParserManager::s_cli_opt_fuctory {
             return parser->add_option(CLIOptStr::SRC_IP,
                                       app_settings->source_ip,
                                       "Source IP address")
-                            ->check(CLI::ValidIPV4)->required();
+                            ->check(CLI::ValidIPV4);
         }
     },
     {
@@ -159,8 +198,7 @@ cli_opt_factory_map_t CLIParserManager::s_cli_opt_fuctory {
                                       app_settings->source_ips,
                                       "Source IP addresses (comma-separated)")
                             ->delimiter(',')
-                            ->check(CLI::ValidIPV4)
-                            ->required();
+                            ->check(CLI::ValidIPV4);
         }
     },
     {
@@ -170,7 +208,8 @@ cli_opt_factory_map_t CLIParserManager::s_cli_opt_fuctory {
             return parser->add_option(CLIOptStr::DST_IP,
                                       app_settings->destination_ip,
                                       "Destination IP of the connection",
-                                      true)->check(CLI::ValidIPV4);
+                                      true)
+                            ->check(CLI::ValidIPV4);
         }
     },
     {
@@ -181,8 +220,7 @@ cli_opt_factory_map_t CLIParserManager::s_cli_opt_fuctory {
                                       app_settings->destination_ips,
                                       "Destination IP addresses (comma-separated)")
                             ->delimiter(',')
-                            ->check(CLI::ValidIPV4)
-                            ->required();
+                            ->check(CLI::ValidIPV4);
         }
     },
     {
@@ -202,9 +240,8 @@ cli_opt_factory_map_t CLIParserManager::s_cli_opt_fuctory {
             return parser->add_option(CLIOptStr::DST_PORTS,
                                       app_settings->destination_ports,
                                       "Destination ports of the connection (comma-separated)",
-                                      true)
-                            ->delimiter(',')
-                            ->check(CLI::Range(MIN_PORT, MAX_PORT));
+                                      true)->delimiter(',')
+                                      ->check(CLI::Range(MIN_PORT, MAX_PORT));
         }
     },
     {
@@ -233,12 +270,10 @@ cli_opt_factory_map_t CLIParserManager::s_cli_opt_fuctory {
         CLIOptStr::STREAMS,
         [](CLI::App_p parser, std::shared_ptr<AppSettings> app_settings)
         {
-            auto option = \
-                parser->add_option(CLIOptStr::STREAMS,
-                                   app_settings->num_of_total_streams,
-                                   "Number of total streams",
-                                    true)->check(CLI::PositiveNumber);
-            return option;
+            return parser->add_option(CLIOptStr::STREAMS,
+                                      app_settings->num_of_total_streams,
+                                      "Number of total streams",
+                                      true)->check(CLI::PositiveNumber);
         }
     },
     {
@@ -266,7 +301,7 @@ cli_opt_factory_map_t CLIParserManager::s_cli_opt_fuctory {
         {
             return parser->add_option(CLIOptStr::PACKETS,
                                       app_settings->num_of_packets_in_chunk,
-                                      "Number of packets in chunk",
+                                      "Number of packets in chunk (default depends on resolution)",
                                       true)->check(CLI::PositiveNumber);
         }
     },
@@ -433,6 +468,15 @@ cli_opt_factory_map_t CLIParserManager::s_cli_opt_fuctory {
         }
     },
     {
+        CLIOptStr::ENABLE_REDUNDANCY,
+        [](CLI::App_p parser, std::shared_ptr<AppSettings> app_settings)
+        {
+            return parser->add_flag(CLIOptStr::ENABLE_REDUNDANCY,
+                                    app_settings->enable_redundancy,
+                                    "Enable SMPTE 2022-7 redundancy");
+        }
+    },
+    {
         CLIOptStr::STATS_CORE,
         [](CLI::App_p parser, std::shared_ptr<AppSettings> app_settings)
         {
@@ -463,6 +507,17 @@ cli_opt_factory_map_t CLIParserManager::s_cli_opt_fuctory {
         }
     },
     {
+        CLIOptStr::RX_STREAM_TYPE,
+        [](CLI::App_p parser, std::shared_ptr<AppSettings> app_settings)
+        {
+            return parser->add_option(CLIOptStr::RX_STREAM_TYPE,
+                                      app_settings->rx_stream_type,
+                                      "RX stream type (raw, app-protocol)")
+                                      ->transform(CLI::CheckedTransformer(UI_RX_STREAM_TYPES, CLI::ignore_case))
+                                      ->default_val(RMX_INPUT_APP_PROTOCOL_PACKET);
+        }
+    },
+    {
         CLIOptStr::VIDEO_RESOLUTION,
         [](CLI::App_p parser, std::shared_ptr<AppSettings> app_settings)
         {
@@ -471,7 +526,7 @@ cli_opt_factory_map_t CLIParserManager::s_cli_opt_fuctory {
                                       "Video resolution in format <width>x<height>")
                                       ->check(VideoResolutionValidator())
                                       ->check(CLI::IsMember(SUPPORTED_VIDEO_RESOLUTIONS))
-                                      ->default_val(Resolution(FHD_WIDTH, FHD_HEIGHT));
+                                      ->default_val(Resolution(_1080_WIDTH, _1080_HEIGHT));
         }
     },
     {
@@ -480,7 +535,7 @@ cli_opt_factory_map_t CLIParserManager::s_cli_opt_fuctory {
         {
             return parser->add_option(CLIOptStr::VIDEO_FRAME_RATE,
                                       app_settings->media.frame_rate,
-                                      "Video frame rate in format <numerator>/<denominator> or <integer>")
+                                      "Video frame rate in format <integer> or <numerator>/<denominator>")
                                       ->check(VideoFrameRateValidator())
                                       ->check(CLI::IsMember(SUPPORTED_VIDEO_FRAME_RATES))
                                       ->default_val(60);
@@ -499,15 +554,56 @@ cli_opt_factory_map_t CLIParserManager::s_cli_opt_fuctory {
         }
     },
     {
+        CLIOptStr::VIDEO_SCAN_TYPE,
+        [](CLI::App_p parser, std::shared_ptr<AppSettings> app_settings)
+        {
+            return parser->add_option(CLIOptStr::VIDEO_SCAN_TYPE,
+                                      app_settings->media.video_scan_type,
+                                      "Video scan type")
+                                      ->transform(CLI::CheckedTransformer(create_mapping_vector(
+                                                  SUPPORTED_VIDEO_SCAN_TYPES), CLI::ignore_case))
+                                      ->default_val(enum_to_string(VideoScanType::Progressive));
+        }
+    },
+    {
         CLIOptStr::VIDEO_BIT_DEPTH,
         [](CLI::App_p parser, std::shared_ptr<AppSettings> app_settings)
         {
             return parser->add_option(CLIOptStr::VIDEO_BIT_DEPTH,
-                                      app_settings->media.bit_depth,
+                                      app_settings->media.color_bit_depth,
                                       "Video bit depth")
                                       ->transform(CLI::CheckedTransformer(create_mapping_vector(
                                                   SUPPORTED_VIDEO_BIT_DEPTHS), CLI::ignore_case))
-                                      ->default_val(enum_to_string(ColorBitDepth::_10));
+                                      ->default_val(enum_to_string(VideoBitDepth::_10));
+        }
+    },
+    {
+        CLIOptStr::ALPHA_BIT_DEPTH,
+        [](CLI::App_p parser, std::shared_ptr<AppSettings> app_settings)
+        {
+            return parser->add_option(CLIOptStr::ALPHA_BIT_DEPTH,
+                                      app_settings->media.alpha_bit_depth,
+                                      "Alpha channel bit depth")
+                                      ->transform(CLI::CheckedTransformer(create_mapping_vector(
+                                                  SUPPORTED_VIDEO_BIT_DEPTHS), CLI::ignore_case));
+        }
+    },
+    {
+        CLIOptStr::ENABLE_VIDEO,
+        [](CLI::App_p parser, std::shared_ptr<AppSettings> app_settings)
+        {
+            return parser->add_flag(CLIOptStr::ENABLE_VIDEO,
+                                    app_settings->media.enable_video,
+                                    "Enable video essence");
+        }
+    },
+    {
+        CLIOptStr::ENABLE_ALPHA,
+        [](CLI::App_p parser, std::shared_ptr<AppSettings> app_settings)
+        {
+            return parser->add_flag(CLIOptStr::ENABLE_ALPHA,
+                                    app_settings->media.enable_alpha,
+                                    "Enable Alpha channel with default bit depth of main video");
         }
     },
     {
@@ -521,12 +617,108 @@ cli_opt_factory_map_t CLIParserManager::s_cli_opt_fuctory {
         }
     },
     {
+        CLIOptStr::AUDIO_FILE,
+        [](CLI::App_p parser, std::shared_ptr<AppSettings> app_settings)
+        {
+            return parser->add_option(CLIOptStr::AUDIO_FILE,
+                                      app_settings->audio_file,
+                                      "Audio file to send")
+                                      ->check(CLI::ExistingFile);
+        }
+    },
+    {
+        CLIOptStr::ANCILLARY_FILE,
+        [](CLI::App_p parser, std::shared_ptr<AppSettings> app_settings)
+        {
+            return parser->add_option(CLIOptStr::ANCILLARY_FILE,
+                                      app_settings->ancillary_file,
+                                      "Ancillary data file (e.g., .srt for closed captions)")
+                                      ->check(CLI::ExistingFile);
+        }
+    },
+    {
         CLIOptStr::DYNAMIC_FILE_LOADING,
         [](CLI::App_p parser, std::shared_ptr<AppSettings> app_settings)
         {
             return parser->add_flag(CLIOptStr::DYNAMIC_FILE_LOADING,
-                                      app_settings->dynamic_video_file_load,
-                                      "Enable dynamic file loading: Load video frames on the fly during transmission)");
+                                      app_settings->dynamic_media_file_load,
+                                      "Enable dynamic file loading: Load media frames on the fly during transmission)");
+        }
+    },
+    {
+        CLIOptStr::ENABLE_AUDIO,
+        [](CLI::App_p parser, std::shared_ptr<AppSettings> app_settings)
+        {
+            return parser->add_flag(CLIOptStr::ENABLE_AUDIO,
+                                    app_settings->media.enable_audio,
+                                    "Enable audio essence");
+        }
+    },
+    {
+        CLIOptStr::ENABLE_ANCILLARY,
+        [](CLI::App_p parser, std::shared_ptr<AppSettings> app_settings)
+        {
+            return parser->add_flag(CLIOptStr::ENABLE_ANCILLARY,
+                                    app_settings->media.enable_ancillary,
+                                    "Enable ancillary essence")
+                                    ->group(CLIGroupStr::ANCILLARY_FORMAT_OPTIONS);
+        }
+    },
+    {
+        CLIOptStr::PTIME_US,
+        [](CLI::App_p parser, std::shared_ptr<AppSettings> app_settings)
+        {
+            return parser->add_option(CLIOptStr::PTIME_US,
+                                    app_settings->media.ptime_us,
+                                    "Audio packet time in microseconds")
+                                    ->default_val(1000);
+        }
+    },
+    {
+        CLIOptStr::AUDIO_SAMPLING_RATE,
+        [](CLI::App_p parser, std::shared_ptr<AppSettings> app_settings)
+        {
+            return parser->add_option(CLIOptStr::AUDIO_SAMPLING_RATE,
+                                    app_settings->media.audio_sampling_rate,
+                                    "Audio sampling rate")
+                                    ->transform(CLI::CheckedTransformer(create_mapping_vector(
+                                                SUPPORTED_AUDIO_SAMPLING_RATES), CLI::ignore_case))
+                                    ->default_val(enum_to_string(AudioSamplingRate::_48000));
+        }
+    },
+    {
+        CLIOptStr::AUDIO_ENCODING,
+        [](CLI::App_p parser, std::shared_ptr<AppSettings> app_settings)
+        {
+            return parser->add_option(CLIOptStr::AUDIO_ENCODING,
+                                    app_settings->media.audio_encoding,
+                                    "Audio encoding")
+                                    ->transform(CLI::CheckedTransformer(create_mapping_vector(
+                                                SUPPORTED_AUDIO_ENCODINGS), CLI::ignore_case))
+                                    ->default_val(enum_to_string(AudioEncoding::L24));
+        }
+    },
+    {
+        CLIOptStr::ANCILLARY_TYPES,
+        [](CLI::App_p parser, std::shared_ptr<AppSettings> app_settings)
+        {
+            auto enable_anc_opt = parser->get_option(CLIOptStr::ENABLE_ANCILLARY);
+            return parser->add_option(CLIOptStr::ANCILLARY_TYPES,
+                                    app_settings->media.ancillary_data_identifiers,
+                                    "Ancillary data types to enable (comma-separated: timecode,afd,cc). "
+                                    "Default: timecode,afd")
+                                    ->delimiter(',')
+                                    ->transform(CLI::CheckedTransformer(UI_ANCILLARY_TYPES, CLI::ignore_case))
+                                    ->needs(enable_anc_opt);
+        }
+    },
+    {
+        CLIOptStr::ANCILLARY_DATA_WORDS_COUNT,
+        [](CLI::App_p parser, std::shared_ptr<AppSettings> app_settings)
+        {
+            return parser->add_option(CLIOptStr::ANCILLARY_DATA_WORDS_COUNT,
+                                    app_settings->media.ancillary_data_words_count,
+                                    "Ancillary data words count");
         }
     },
 };

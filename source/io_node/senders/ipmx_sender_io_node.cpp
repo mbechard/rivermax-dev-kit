@@ -1,6 +1,6 @@
 /*
  * SPDX-FileCopyrightText: NVIDIA CORPORATION & AFFILIATES
- * Copyright (c) 2025 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+ * Copyright (c) 2025-2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
  * SPDX-License-Identifier: Apache-2.0
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -16,28 +16,28 @@
  * limitations under the License.
  */
 
-#include <cstdint>
-#include <thread>
 #include <cstddef>
-#include <vector>
-#include <memory>
-#include <iostream>
-#include <sstream>
+#include <cstdint>
 #include <cstring>
+#include <iostream>
+#include <memory>
 #include <regex>
-
 #include <rivermax_api.h>
-#include "rdk/services/media/media_defs.h"
+#include <sstream>
+#include <thread>
+#include <vector>
+
 #include "rt_threads.h"
 
-#include "rdk/io_node/senders/ipmx_sender_io_node.h"
-#include "rdk/services/error_handling/error_handling.h"
-#include "rdk/services/cpu/cpu.h"
-#include "rdk/services/utils/defs.h"
-#include "rdk/services/media/media.h"
-#include "rdk/services/utils/enum_utils.h"
+#include "rdk/services/media/media_settings_video.h"
 #include "rdk/core/chunk/generic_chunk.h"
 #include "rdk/core/flow/flow.h"
+#include "rdk/io_node/senders/ipmx_sender_io_node.h"
+#include "rdk/services/cpu/cpu.h"
+#include "rdk/services/error_handling/error_handling.h"
+#include "rdk/services/media/media.h"
+#include "rdk/services/utils/defs.h"
+#include "rdk/services/utils/enum_utils.h"
 
 using namespace rivermax::dev_kit::io_node;
 using namespace rivermax::dev_kit::services;
@@ -89,7 +89,11 @@ ReturnStatus SharedMessageHandler::commit_message(const rmx_mem_region& mreg, si
         }
         return status;
     }
-    m_chunk_handle->mark_for_tracking(sender_id);
+    status = m_chunk_handle->mark_for_tracking(sender_id);
+    if (status != ReturnStatus::success) {
+        std::cerr << "Sender " << sender_id << " failed to mark a chunk for tracking" << std::endl;
+        return status;
+    }
     m_chunk_handle->commit_chunk(0);
     m_pending_message_count++;
     return ReturnStatus::success;
@@ -124,16 +128,10 @@ ReturnStatus SharedMessageHandler::check_completion(size_t& sender_id, uint64_t&
 }
 
 IPMXStreamSender::IPMXStreamSender(size_t sender_id, const TwoTupleFlow& src_address,
-    const TwoTupleFlow& dst_address, const MediaSettings& media_settings,
-    size_t chunks_in_mem_block, size_t packets_in_chunk,
-    uint16_t packet_payload_size, size_t data_stride_size) :
+    const TwoTupleFlow& dst_address, const MediaSettings& media_settings) :
     m_sender_id(sender_id),
     m_stream_number{dst_address.get_id()},
     m_media_settings(media_settings),
-    m_chunks_in_mem_block{chunks_in_mem_block},
-    m_packets_in_chunk{packets_in_chunk},
-    m_packet_payload_size{packet_payload_size},
-    m_data_stride_size{data_stride_size},
     m_start_send_time_ns{0},
     m_committed_reports{0},
     m_finished_reports{0},
@@ -150,12 +148,9 @@ IPMXStreamSender::IPMXStreamSender(size_t sender_id, const TwoTupleFlow& src_add
     auto dst_port = dst_address.get_port();
 
     m_report_dst_flow = std::make_unique<TwoTupleFlow>(m_stream_number, dst_ip, dst_port + 1);
-    modify_sdp_field(m_media_settings.sdp, "c=IN IP4 ", dst_ip, "/");
-    modify_sdp_field(m_media_settings.sdp, "incl IN IP4 ", dst_ip, " ");
-    modify_sdp_field(m_media_settings.sdp, "m=video ", std::to_string(dst_port), " ");
 
-    MediaStreamSettings stream_settings(src_address, m_media_settings,
-                m_packets_in_chunk, m_packet_payload_size, m_data_stride_size);
+    FourTupleFlow flow(m_stream_number, src_address, dst_address);
+    MediaStreamSettings stream_settings({flow}, m_media_settings);
 
     configure_memory_layout();
     m_stream = std::make_unique<RtpVideoSendStream>(stream_settings, *m_mem_blockset.get());
@@ -165,10 +160,11 @@ IPMXStreamSender::IPMXStreamSender(size_t sender_id, const TwoTupleFlow& src_add
 
 void IPMXStreamSender::configure_memory_layout()
 {
-    m_mem_block_payload_sizes.resize(m_chunks_in_mem_block * m_packets_in_chunk, m_packet_payload_size);
+    m_mem_block_payload_sizes.resize(m_media_settings.chunks_in_mem_block * m_media_settings.packets_in_chunk,
+        m_media_settings.packet_payload_size);
 
     m_mem_blockset = std::make_unique<MediaStreamMemBlockset>(
-            1, 1, m_chunks_in_mem_block);
+            1, 1, m_media_settings.chunks_in_mem_block);
     m_mem_blockset->set_rivermax_to_allocate_memory();
     m_mem_blockset->set_block_layout(0, m_mem_block_payload_sizes.data(), nullptr);
 }
@@ -208,35 +204,49 @@ size_t IPMXStreamSender::prepare_sender_report_base(uint32_t ssrc, const TwoTupl
     m_report.sr.length = htons(sizeof(m_report.sr) / sizeof(uint32_t) - 1);
     m_report.sr.info.ipmx_tag = htons(IPMX_TAG);
     m_report.sr.info.length = htons((sizeof(m_report.sr.info) + sizeof(m_report.sr.media)) / sizeof(uint32_t) - 1);
-    std::strncpy((char *)(m_report.sr.info.ts_refclk), m_media_settings.refclk.c_str(),
+
+    std::string refclk_attribute_value;
+    if (m_media_settings.ref_clk_is_ptp) {
+        if (m_media_settings.refclk_id.length()) {
+            refclk_attribute_value = "ptp=IEEE1588-2008:traceable";
+        } else {
+            refclk_attribute_value = "ptp=IEEE1588-2008:" + m_media_settings.refclk_id + ":" +
+                    std::to_string(m_media_settings.ptp_domain_id);
+        }
+    } else {
+        refclk_attribute_value = "localmac=" + m_media_settings.refclk_id;
+    }
+
+    std::strncpy((char *)(m_report.sr.info.ts_refclk), refclk_attribute_value.c_str(),
                           sizeof(m_report.sr.info.ts_refclk) - 1);
     std::strncpy((char *)(m_report.sr.info.mediaclk), "direct=0",
                           sizeof(m_report.sr.info.mediaclk) - 1);
 
+    auto& video_settings = static_cast<const SMPTE_2110_20_MediaSettings&>(m_media_settings);
+
     m_report.sr.media.type = htons(IPMX_MIB_TYPE_UNCOMPRESSED_VIDEO);
     m_report.sr.media.length = htons(sizeof(m_report.sr.media) / sizeof(uint32_t) - 1);
     std::strncpy((char *)(m_report.sr.media.sampling),
-        enum_to_string(m_media_settings.sampling_type).c_str(),
+        enum_to_string(video_settings.sampling_type).c_str(),
         sizeof(m_report.sr.media.sampling) - 1);
-    m_report.sr.media.packing = htons(pack_media_bits_interlace(std::stoi(enum_to_string(m_media_settings.bit_depth)),
-        (m_media_settings.video_scan_type == VideoScanType::Interlaced)));
+    m_report.sr.media.packing = htons(pack_media_bits_interlace(std::stoi(enum_to_string(video_settings.bit_depth)),
+        (video_settings.video_scan_type == VideoScanType::Interlaced)));
     std::strncpy((char *)(m_report.sr.media.range), "NARROW", sizeof(m_report.sr.media.range) - 1);
     std::strncpy((char *)(m_report.sr.media.colorimetry), "BT709",
         sizeof(m_report.sr.media.colorimetry) - 1);
     std::strncpy((char *)(m_report.sr.media.tcs), "SDR", sizeof(m_report.sr.media.tcs) - 1);
     m_report.sr.media.par_h = 1;
     m_report.sr.media.par_w = 1;
-    m_report.sr.media.width = htons(m_media_settings.resolution.width);
-    m_report.sr.media.height = htons(m_media_settings.resolution.height);
-    uint64_t pixel_clock = ((static_cast<uint64_t>(m_media_settings.resolution.width *
-                                                   m_media_settings.resolution.height) *
-                            m_media_settings.frame_rate.num) / m_media_settings.frame_rate.denom);
+    m_report.sr.media.width = htons(video_settings.resolution.width);
+    m_report.sr.media.height = htons(video_settings.resolution.height);
+    uint64_t pixel_clock = rational_cast<uint64_t>(
+        static_cast<uint64_t>(video_settings.resolution.width) * video_settings.resolution.height * video_settings.frame_rate);
     m_report.sr.media.pixel_clk_hi = htonl(static_cast<uint32_t>(pixel_clock / NS_IN_SEC));
     m_report.sr.media.pixel_clk_lo = htonl(static_cast<uint32_t>(pixel_clock % NS_IN_SEC));
     m_report.sr.media.htotal = m_report.sr.media.width;
     m_report.sr.media.vtotal = m_report.sr.media.height;
-    m_report.sr.media.rate = htonl((m_media_settings.frame_rate.num) << 10 |
-                                   (m_media_settings.frame_rate.denom));
+    m_report.sr.media.rate = htonl((video_settings.frame_rate.total_numerator()) << 10 |
+                                   (video_settings.frame_rate.total_denominator()));
     return sizeof(IPMXSenderReport);
 }
 
@@ -276,9 +286,9 @@ ReturnStatus IPMXStreamSender::notify_report_completion(uint64_t completion_time
 
     m_stats.report_delay_sum += report_delay;
     uint64_t next_frame_start_time = m_start_send_time_ns +
-    static_cast<uint64_t>(m_finished_reports * m_media_settings.frame_field_time_interval_ns);
+    static_cast<uint64_t>(m_finished_reports * m_media_settings.media_unit_time_interval_ns);
     uint64_t cur_frame_start_time = next_frame_start_time -
-        static_cast<uint64_t>(m_media_settings.frame_field_time_interval_ns);
+        static_cast<uint64_t>(m_media_settings.media_unit_time_interval_ns);
     int64_t chunk_tx_pos = m_last_report_trigger_ts - cur_frame_start_time;
     if (m_stats.sent_frames_cnt == 0) {
         m_stats.chunk_tx_pos_min = chunk_tx_pos;
@@ -319,16 +329,16 @@ ReturnStatus IPMXStreamSender::commit_sender_report()
     }
 
     uint64_t timestamp = m_start_send_time_ns +
-        static_cast<uint64_t>(m_media_settings.frame_field_time_interval_ns *
+        static_cast<uint64_t>(m_media_settings.media_unit_time_interval_ns *
                                          m_finished_first_chunks);
     m_report.sr.ntp_ts_hi = htonl(static_cast<uint32_t>(timestamp / NS_IN_SEC));
     m_report.sr.ntp_ts_lo = htonl(static_cast<uint32_t>(timestamp % NS_IN_SEC));
     uint32_t rtp_ts = static_cast<uint32_t>(
             time_to_rtp_timestamp(timestamp, static_cast<int>(m_media_settings.sample_rate)));
     m_report.sr.rtp_ts = htonl(rtp_ts);
-    uint32_t sent_pkt_cnt = m_finished_fields * m_media_settings.packets_in_frame_field;
+    uint32_t sent_pkt_cnt = m_finished_fields * m_media_settings.packets_in_media_unit;
     m_report.sr.pkt_cnt = htonl(sent_pkt_cnt);
-    uint32_t payload_octets_in_packet = m_packet_payload_size -
+    uint32_t payload_octets_in_packet = m_media_settings.packet_payload_size -
                                         (RTP_HEADER_SIZE + RTP_SINGLE_SRD_HEADER_SIZE);
     m_report.sr.byte_cnt = htonl(sent_pkt_cnt * payload_octets_in_packet);
 
@@ -400,10 +410,10 @@ ReturnStatus IPMXStreamSender::process_media_completion()
             }
             return status;
         }
-    } else if (chunk_in_field_frame == m_media_settings.chunks_in_frame_field - 1) {
+    } else if (chunk_in_field_frame == m_media_settings.chunks_in_media_unit - 1) {
         m_finished_fields++;
         uint64_t next_frame_start_time = m_start_send_time_ns +
-            static_cast<uint64_t>(m_finished_fields * m_media_settings.frame_field_time_interval_ns);
+            static_cast<uint64_t>(m_finished_fields * m_media_settings.media_unit_time_interval_ns);
         /*
          * The last chunk of a media frame besides the media packets contains "dummy packets"
          * to fill the inter-frame gap. This causes the last chunk to complete just before
@@ -412,7 +422,7 @@ ReturnStatus IPMXStreamSender::process_media_completion()
          * When the sender is not fast enough, this delay will accumulate.
          * Here we define a threshold to detect a slow sender and to avoid false timeouts.
          */
-        uint64_t last_chunk_completion_delay_tolerance = m_media_settings.frame_field_time_interval_ns;
+        uint64_t last_chunk_completion_delay_tolerance = m_media_settings.media_unit_time_interval_ns;
         if (tx_hw_timestamp > next_frame_start_time + last_chunk_completion_delay_tolerance) {
             m_stats.frame_send_timeouts++;
         }
@@ -423,7 +433,7 @@ ReturnStatus IPMXStreamSender::process_media_completion()
 
 bool IPMXStreamSender::has_free_frame_buffer() const
 {
-    return m_committed_fields < m_finished_fields + m_media_settings.frames_fields_in_mem_block;
+    return m_committed_fields < m_finished_fields + m_media_settings.media_units_in_mem_block;
 }
 
 bool IPMXStreamSender::is_report_for_current_frame_sent() const
@@ -438,7 +448,7 @@ bool IPMXStreamSender::can_sleep(uint64_t& max_wakeup_time) const
         return false;
     }
     max_wakeup_time = m_start_send_time_ns - REPORT_SEND_SAFE_SLEEP_MARGIN +
-        static_cast<uint64_t>(m_media_settings.frame_field_time_interval_ns * m_finished_first_chunks);
+        static_cast<uint64_t>(m_media_settings.media_unit_time_interval_ns * m_finished_first_chunks);
     return true;
 }
 
@@ -462,7 +472,7 @@ ReturnStatus IPMXStreamSender::commit_next_media_chunk()
     uint64_t commit_timestamp_ns = 0;
     if (m_chunk_in_field_counter == 0) {
         commit_timestamp_ns = m_start_send_time_ns +
-            static_cast<uint64_t>(m_media_settings.frame_field_time_interval_ns * m_committed_fields);
+            static_cast<uint64_t>(m_media_settings.media_unit_time_interval_ns * m_committed_fields);
     }
 
     status = m_media_chunk_handler->mark_for_tracking(m_chunk_in_field_counter);
@@ -486,7 +496,7 @@ ReturnStatus IPMXStreamSender::commit_next_media_chunk()
         m_committed_first_chunks++;
     }
     m_chunk_in_field_counter++;
-    if (m_chunk_in_field_counter == m_media_settings.chunks_in_frame_field) {
+    if (m_chunk_in_field_counter == m_media_settings.chunks_in_media_unit) {
         m_chunk_in_field_counter = 0;
         m_committed_fields++;
     }
@@ -520,7 +530,7 @@ void IPMXStreamSender::reset_report_stats()
 
 void IPMXStreamSender::init_media_chunk_handler()
 {
-    m_media_chunk_handler = std::make_unique<MediaChunk>(m_stream->get_id(), m_packets_in_chunk, 0); // HDS is not supported
+    m_media_chunk_handler = std::make_unique<MediaChunk>(m_stream->get_id(), m_media_settings.packets_in_chunk, 0); // HDS is not supported
 }
 
 void IPMXStreamSender::set_report_chunk_handler(const std::shared_ptr<SharedMessageHandler>& report_handler)
@@ -546,16 +556,14 @@ IPMXSenderIONode::IPMXSenderIONode(
     const TwoTupleFlow& src_address,
     const std::vector<TwoTupleFlow>& dst_addresses,
     std::shared_ptr<AppSettings>& app_settings,
+    const MediaSettings& media_settings,
     size_t index, int cpu_core_affinity) :
-    m_media_settings(app_settings->media),
+    m_media_settings(media_settings),
     m_index(index),
     m_sleep_between_operations(app_settings->sleep_between_operations),
     m_print_parameters(app_settings->print_parameters),
+    m_stats_report_interval_ms(app_settings->stats_report_interval_ms),
     m_cpu_core_affinity(cpu_core_affinity),
-    m_packet_payload_size(app_settings->packet_payload_size),
-    m_chunks_in_mem_block(app_settings->num_of_chunks_in_mem_block),
-    m_packets_in_chunk(app_settings->num_of_packets_in_chunk),
-    m_data_stride_size(align_up_pow2(m_packet_payload_size, get_cache_line_size())),
     m_sender_report_buffer_size(align_up_pow2(sizeof(RTCPCompoundPacket), get_cache_line_size())),
     m_start_send_time_ns(0)
 {
@@ -565,12 +573,10 @@ IPMXSenderIONode::IPMXSenderIONode(
 
 std::ostream& IPMXSenderIONode::print(std::ostream& out) const
 {
-    out << "+#############################################\n"
-        << "| Sender index: " << m_index << "\n"
+    out << "| Sender index: " << m_index << "\n"
         << "| Thread ID: 0x" << std::hex << std::this_thread::get_id() << std::dec << "\n"
         << "| CPU core affinity: " << m_cpu_core_affinity << "\n"
-        << "| Number of streams in this thread: " << m_stream_senders.size() << "\n"
-        << "+#############################################\n";
+        << "| Number of streams in this thread: " << m_stream_senders.size() << "\n";
     return out;
 }
 
@@ -586,8 +592,7 @@ void IPMXSenderIONode::initialize_streams(
     m_stream_senders.reserve(dst_addresses.size());
     size_t sender_id = 0;
     for (auto & dst_address : dst_addresses) {
-        m_stream_senders.emplace_back(sender_id++, src_address, dst_address, m_media_settings,
-            m_chunks_in_mem_block, m_packets_in_chunk, m_packet_payload_size, m_data_stride_size);
+        m_stream_senders.emplace_back(sender_id++, src_address, dst_address, m_media_settings);
     }
 }
 
@@ -626,9 +631,16 @@ void IPMXSenderIONode::print_parameters()
     }
 
     std::stringstream sender_parameters;
+    sender_parameters << "+#############################################\n";
     sender_parameters << this;
+    sender_parameters << "+---------------------------------------------\n";
+    sender_parameters << "| RTCP stream (IPMX Sender Reports of media streams):\n";
+    sender_parameters << *m_rtcp_stream;
+    sender_parameters << "+---------------------------------------------\n";
+
     for (auto& stream_sender : m_stream_senders) {
         sender_parameters << stream_sender.get_media_stream();
+        sender_parameters << "+---------------------------------------------\n";
     }
 
     if (m_index == 0) {
@@ -704,7 +716,7 @@ void IPMXSenderIONode::operator()()
     uint64_t last_stats_update_time = m_start_send_time_ns;
 
     wait_until(static_cast<uint64_t>(m_start_send_time_ns -
-        static_cast<uint64_t>(m_media_settings.frame_field_time_interval_ns)));
+        static_cast<uint64_t>(m_media_settings.media_unit_time_interval_ns)));
     send_initial_reports();
 
     while (likely(status == ReturnStatus::success && SignalHandler::get_received_signal() < 0)) {
@@ -722,7 +734,7 @@ void IPMXSenderIONode::operator()()
         uint64_t time_now;
         get_rivermax_ptp_time_ns(time_now);
         uint64_t latest_wakeup_time = time_now +
-            static_cast<uint64_t>(m_media_settings.frame_field_time_interval_ns);
+            static_cast<uint64_t>(m_media_settings.media_unit_time_interval_ns);
         bool safe_to_send = true;
         for (auto& stream_sender : m_stream_senders) {
             status = stream_sender.track_media_completions();
@@ -769,7 +781,7 @@ void IPMXSenderIONode::operator()()
             wait_until(latest_wakeup_time);
         }
 
-        if (time_now > last_stats_update_time + NS_IN_SEC) {
+        if (m_stats_report_interval_ms > 0 && time_now >= last_stats_update_time + m_stats_report_interval_ms * NS_IN_MSEC) {
             std::ostringstream oss;
             oss << "+--------+-------------+----------+-------------+---------------+"
                    "---------------+------------------+------------------+------------------+"

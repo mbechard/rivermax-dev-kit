@@ -1,5 +1,5 @@
 # SPDX-FileCopyrightText: NVIDIA CORPORATION & AFFILIATES
-# Copyright (c) 2025 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+# Copyright (c) 2025-2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -20,14 +20,17 @@ add_library(${PROJECT_NAME} STATIC)
 
 target_link_libraries(${PROJECT_NAME}
     PRIVATE
+#        Rivermax::Include
         rivermax-dev-kit-build
     PUBLIC
         rivermax-dev-kit-services-cpu
         rivermax-dev-kit-services-legacy-util
         rivermax-dev-kit-services-error-handling
         rivermax-dev-kit-services-utils
+        rivermax-dev-kit-services-protocol
         rivermax-dev-kit-services-sdp
         rivermax-dev-kit-services-statistics
+        rivermax-dev-kit-services-media
 )
 target_include_directories(${PROJECT_NAME} PUBLIC include)
 
@@ -40,8 +43,10 @@ set(RIVERMAX_DEV_KIT_SERVICE_COMPONENTS
     statistics
     utils
     media
+    protocol
     sdp
-    buffer_wr
+    ulp_packet
+    ulp_packet_buffer
     memory_allocation
 )
 foreach(service_component ${RIVERMAX_DEV_KIT_SERVICE_COMPONENTS})

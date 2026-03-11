@@ -1,6 +1,6 @@
 /*
  * SPDX-FileCopyrightText: NVIDIA CORPORATION & AFFILIATES
- * Copyright (c) 2025 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+ * Copyright (c) 2025-2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
  * SPDX-License-Identifier: Apache-2.0
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -20,12 +20,11 @@
 #define RDK_SERVICES_CLI_OPTIONS_H_
 
 #include <climits>
-#include <unordered_map>
 #include <functional>
 #include <memory>
+#include <unordered_map>
 
 #include "CLI/CLI.hpp"
-
 #include "rdk/services/settings/app_settings.h"
 
 namespace rivermax
@@ -51,6 +50,7 @@ constexpr size_t NUM_OF_PACKETS_IN_CHUNK_DEFAULT = 4096;
 constexpr uint16_t PACKET_PAYLOAD_SIZE_DEFAULT = 1460;
 constexpr uint16_t PACKET_APP_HEADER_SIZE_DEFAULT = 0;
 constexpr int SLEEP_BETWEEN_OPERATIONS_US_DEFAULT = 0;
+constexpr const char* SOURCE_IP_DEFAULT = "0.0.0.0";
 constexpr const char* DESTINATION_IP_DEFAULT = "234.5.6.7";
 constexpr uint16_t DESTINATION_PORT_DEFAULT = 50000;
 constexpr uint32_t STATS_REPORT_INTERVAL_MS_DEFAULT = 1000;
@@ -101,12 +101,27 @@ public:
     static const char* STATS_CORE;
     static const char* STATS_SESSION_ID;
     static const char* STATS_REPORT_INTERVAL;
+    static const char* RX_STREAM_TYPE;
     static const char* VIDEO_RESOLUTION;
     static const char* VIDEO_FRAME_RATE;
     static const char* VIDEO_SAMPLING;
+    static const char* VIDEO_SCAN_TYPE;
     static const char* VIDEO_BIT_DEPTH;
+    static const char* ALPHA_BIT_DEPTH;
+    static const char* ENABLE_VIDEO;
+    static const char* ENABLE_ALPHA;
+    static const char* ENABLE_AUDIO;
+    static const char* ENABLE_ANCILLARY;
     static const char* VIDEO_FILE;
+    static const char* AUDIO_FILE;
+    static const char* ANCILLARY_FILE;
     static const char* DYNAMIC_FILE_LOADING;
+    static const char* PTIME_US;
+    static const char* AUDIO_SAMPLING_RATE;
+    static const char* AUDIO_ENCODING;
+    static const char* ANCILLARY_TYPES;
+    static const char* ANCILLARY_DATA_WORDS_COUNT;
+    static const char* ENABLE_REDUNDANCY;
 };
 /**
  * @brief: CLI groups string key.
@@ -117,6 +132,8 @@ class CLIGroupStr
 {
 public:
     static const char* VIDEO_FORMAT_OPTIONS;
+    static const char* AUDIO_FORMAT_OPTIONS;
+    static const char* ANCILLARY_FORMAT_OPTIONS;
 };
 
 } // namespace services

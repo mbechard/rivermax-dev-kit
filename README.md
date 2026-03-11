@@ -1,5 +1,14 @@
 # Rivermax Dev Kit
 
+[![GitHub](https://img.shields.io/badge/github-NVIDIA%2Frivermax--dev--kit-blue "View on GitHub")](https://github.com/NVIDIA/rivermax-dev-kit/)
+[![License](https://img.shields.io/badge/license-Apache%202.0-blue "Apache 2.0 License")](LICENSE.md)
+
+[![main branch](https://img.shields.io/badge/branch-main%20(GA)-brightgreen "Main branch - General Availability (GA) branch - stable, tested, and verified for production use.")](https://github.com/NVIDIA/rivermax-dev-kit/tree/main)
+[![Last Commit (main)](https://img.shields.io/github/last-commit/NVIDIA/rivermax-dev-kit/main?label=last%20commit&color=brightgreen "Latest Commit on Main Branch")](https://github.com/NVIDIA/rivermax-dev-kit/commits/main)
+
+[![dev branch](https://img.shields.io/badge/branch-dev%20(alpha)-orange "Development branch - alpha-level features and ongoing development. Use for testing and early access to new features.")](https://github.com/NVIDIA/rivermax-dev-kit/tree/dev)
+[![Last Commit (dev)](https://img.shields.io/github/last-commit/NVIDIA/rivermax-dev-kit/dev?label=last%20commit&color=orange "Latest Commit on Development Branch")](https://github.com/NVIDIA/rivermax-dev-kit/commits/dev)
+
 Rivermax Dev Kit is a high-level C++ SW kit designed to accelerate and simplify Rivermax application development.
 
 ## Overview
@@ -155,13 +164,10 @@ On Windows, one should take the following steps:
 On Linux, one should take the following steps:
 
 1. Download the latest version of CMake installation bash-script e.g.:
-
     ```sh
     wget https://github.com/Kitware/CMake/releases/download/v3.26.4/cmake-3.26.4-linux-x86_64.sh -O cmake.sh
     ```
-
 2. Install CMake by running the script with the following command-line arguments:
-
     ```sh
     sudo sh cmake.sh --prefix=/usr/local/ --exclude-subdir
     ```
@@ -232,7 +238,6 @@ Rivermax Dev Kit leverages CMake for its build system, offering flexibility in c
 #### Building Rivermax Dev Kit
 
 1. Initialize build environment in an output directory `<build-dir>` of your choice:
-
     ```sh
     cmake -B <build-dir> -DCMAKE_BUILD_TYPE=Release
     ```
@@ -240,10 +245,8 @@ Rivermax Dev Kit leverages CMake for its build system, offering flexibility in c
     >To compile with CUDA support, add `-DRMAX_CUDA=ON` to `cmake` command-line. `nvcc`
     >must be in `PATH`; you can add it using `export PATH=$PATH:/usr/local/cuda/bin/` on Linux, or
     >`set PATH=%PATH%;<CUDA_INSTALL_DIR>\bin` on Windows.
-
 2. After the build environment is set in output directory `<build-dir>`,
    build Rivermax Dev Kit with the following command-line:
-
     ```sh
     cmake --build <build-dir> --config Release --parallel
     ```
@@ -272,14 +275,37 @@ cmake -B <build-dir> -LH
 
 ## CLI Applications
 
-The Rivermax Dev Kit includes a set of command-line interface (CLI) applications that serve as CLI binaries for the app modules.
-These applications are designed to demonstrate the functionality of the Rivermax Dev Kit and provide a convenient way to interact with its features.
-After building the Rivermax Dev Kit, you can find the CLI applications in the `<build-dir>/source/apps` directory.
-Each application is organized into its own subdirectory, and the executable files are named according to the corresponding folder names.
+The Rivermax Dev Kit includes command-line interface applications that serve as CLI binaries for the app modules. These applications are designed to demonstrate the functionality and performance of the Rivermax Dev Kit and provide a convenient way to interact with its features.
 
-Each CLI application is designed to showcase specific features and capabilities of the Rivermax Dev Kit. You can run these applications from the command line to test and explore the functionality of the Rivermax Dev Kit.
+After building the Rivermax Dev Kit, you can find the CLI applications in the `<build-dir>/binaries/apps` directory. Each CLI application is organized into its own subdirectory, and the executable files are named according to the corresponding folder names.
 
-In addition to being available as CLI interfaces, these applications are also accessible as software APIs within the `apps` module. This allows developers to integrate the same functionality directly into their own applications, providing flexibility for both standalone usage and embedded development.
+In addition to being available as CLI interfaces, these applications are also accessible as software APIs within the [`apps`](source/apps) module. This allows developers to integrate the same functionality directly into their own applications, providing flexibility for both standalone usage and embedded development.
+
+### Available Applications
+
+- **[`rdk_generic_sender`](source/apps/generic_sender)**: A generic sender application for transmitting custom UDPv4 data streams using Rivermax. Supports configurable rate limiting, packet sizes, and transmission parameters for both unicast and multicast flows.
+
+- **[`rdk_media_sender`](source/apps/media_sender)**: A media sender application for streaming media content over IP networks. Supports industry-standard SMPTE 2110-20 (video), SMPTE 2110-30 (audio), and SMPTE 2110-40 (ancillary data) formats for professional media streaming workflows.
+
+- **[`rdk_rtp_receiver`](source/apps/rtp_receiver)**: A Real-time Transport Protocol (RTP) receiver application for receiving and processing RTP streams. Supports both standard and extended RTP sequence numbers for flexible packet handling.
+
+- **[`rdk_ipo_receiver`](source/apps/ipo_receiver)**: An Inline Packet Ordering (IPO) receiver application for receiving Real-time Transport Protocol (RTP) streams with hardware packet reordering. Provides efficient handling of out-of-order packets and supports SMPTE 2022-7 redundancy workflows.
+
+- **[`rdk_ipmx_sender`](source/apps/ipmx_sender)**: An Internet Protocol Media Experience (IPMX) sender application for transmitting media streams. Supports professional media transport over IP networks with SMPTE 2110 compliance.
+
+- **[`rdk_ipmx_receiver`](source/apps/ipmx_receiver)**: An Internet Protocol Media Experience (IPMX) receiver application for receiving media streams. Tracks stream synchronization and timeline information for multi-component video signals.
+
+- **[`rdk_media_probe`](source/apps/media_probe)**: A media receiver application for analyzing and monitoring SMPTE ST 2110-20 video signals. Supports Main Video Essence (color) and Alpha/Key channels, synchronization tracking, latency calculation, and comprehensive statistics reporting for multiple concurrent streams.
+
+- **[`rdk_latency`](source/apps/latency)**: A latency measurement application for assessing end-to-end delivery delays in streaming workflows. Supports multiple measurement modes including ping-pong for single-packet transfers, frame latency for arbitrary size video frames, and media mode with packet pacing for SMPTE 2110-21 compliant measurements.
+
+## Examples
+
+The Rivermax Dev Kit includes a set of examples that demonstrate how to use its various modules and APIs. These examples serve as practical tutorials and reference implementations for developers looking to integrate the Rivermax Dev Kit into their applications, covering different aspects of the development kit and showcasing various use cases.
+
+The source code for these examples is located in the `examples/` directory. Examples are automatically built alongside the main project and can be found in `<build-dir>/examples` after compilation.
+
+For detailed information about individual examples, usage instructions, and implementation details, see the [examples README](examples/README.md).
 
 ## Documentation
 
@@ -292,13 +318,11 @@ To build the documentation, ensure that Doxygen version 1.9.8 or later is instal
 For Linux, you can install Doxygen using the following commands:
 
 - **Debian/Ubuntu-based systems**:
-
     ```sh
     sudo apt install doxygen
     ```
 
 - **RHEL/CentOS/Fedora-based systems**:
-
     ```sh
     sudo dnf install doxygen
     ```

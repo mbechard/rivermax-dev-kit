@@ -28,7 +28,7 @@
 #include "rdk/services/error_handling/return_status.h"
 #include "rdk/core/memory_layout/media_memory_layout.h"
 #include "rdk/core/memory_layout/header_payload_memory_layout.h"
-#include "rdk/services/media/media_defs.h"
+#include "rdk/services/media/media_settings.h"
 #include "rdk/core/stream/send/send_stream_interface.h"
 #include "rdk/core/chunk/media_chunk.h"
 #include "rdk/core/flow/flow.h"
@@ -52,27 +52,25 @@ public:
     /**
      * @brief: MediaSendStream constructor.
      *
-     * @param [in] local_address: Network address of the stream.
+     * @param [in] flows: Network flows (source and destination addresses).
      * @param [in] media_settings: Parameters of SMPTE-2110 media.
-     * @param [in] packets_per_chunk: Number of packets in each chunk.
-     * @param [in] packet_payload_size: Packet payload size in bytes.
-     * @param [in] data_stride_size: Number of bytes in Rivermax stride for data.
-     * @param [in] app_header_stride_size: Number of bytes in Rivermax stride for headers.
      * @param [in] dscp: DSCP value.
      * @param [in] pcp: PCP value.
      * @param [in] ecn: ECN value.
      */
-    MediaStreamSettings(const TwoTupleFlow& local_address, const MediaSettings& media_settings,
-            size_t packets_per_chunk, uint16_t packet_payload_size,
-            size_t data_stride_size, size_t app_header_stride_size = 0,
+    MediaStreamSettings(const std::vector<FourTupleFlow>& flows, const MediaSettings& media_settings,
             uint8_t dscp = 0, uint8_t pcp = 0, uint8_t ecn = 0);
     virtual ~MediaStreamSettings() = default;
-    TwoTupleFlow m_local_address;
-    MediaSettings m_media_settings;
-    size_t m_packets_per_chunk;
-    uint16_t m_packet_payload_size;
-    size_t m_data_stride_size;
-    size_t m_app_header_stride_size;
+    /**
+     * @brief: Returns the SDP of the stream.
+     *
+     * @return: SDP of the stream.
+     */
+    std::string get_sdp() const { return m_sdp; }
+    std::vector<TwoTupleFlow> m_src_addresses;
+    std::vector<TwoTupleFlow> m_dst_addresses;
+    const MediaSettings& m_media_settings;
+    std::string m_sdp;
     uint8_t m_dscp;
     uint8_t m_pcp;
     uint8_t m_ecn;
@@ -204,10 +202,11 @@ public:
     * @param [in] sub_block_idx: Sub-block number, see @ref MediaStreamMemBlockset constructor.
     * @param [in] block_memory_start: Start address of the block memory.
     * @param [in] block_memory_size: Size of the block memory.
-    * @param [in] memory_keys: Memory keys array (@ref RMX_MAX_SUB_BLOCKS_PER_MEM_BLOCK elements).
+    * @param [in] memory_keys: Memory keys vector (for multiple memory registration
+    *                          in redundant interfaces).
     */
     void set_dup_block_memory(size_t idx, size_t sub_block_idx, void* block_memory_start,
-            size_t block_memory_size, rmx_mkey_id memory_keys[]);
+            size_t block_memory_size, const std::vector<rmx_mkey_id>& memory_keys);
     /**
     * @brief: Configures all memory blocks to be allocated by Rivermax.
     */
@@ -277,19 +276,19 @@ public:
      *
      * @return: Data stride size.
      */
-    virtual size_t get_data_stride_size() const { return m_stream_settings.m_data_stride_size; }
+    virtual size_t get_data_stride_size() const { return m_stream_settings.m_media_settings.data_stride_size; }
     /**
      * @brief: Returns header stride size of the stream buffer attributes.
      *
      * @return: Header stride size.
      */
-    virtual size_t get_app_header_stride_size() const { return m_stream_settings.m_app_header_stride_size; }
+    virtual size_t get_app_header_stride_size() const { return m_stream_settings.m_media_settings.app_header_stride_size; }
     /**
      * @brief: Returns status of Header-Data-Split mode.
      *
      * @return: true if Header-Data-Split mode is enabled.
      */
-    bool is_hds_on() const { return m_stream_settings.m_app_header_stride_size != 0; }
+    bool is_hds_on() const { return m_stream_settings.m_media_settings.app_header_stride_size != 0; }
     /**
      * @brief: Acquires the next free chunk of the stream.
      *

@@ -1,6 +1,6 @@
 /*
  * SPDX-FileCopyrightText: NVIDIA CORPORATION & AFFILIATES
- * Copyright (c) 2025 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+ * Copyright (c) 2025-2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
  * SPDX-License-Identifier: Apache-2.0
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -16,36 +16,38 @@
  * limitations under the License.
  */
 
+#include <chrono>
 #include <cstring>
 #include <iostream>
-#include <chrono>
+#include <sstream>
 #include <thread>
 
-#include "rdk/services/utils/defs.h"
-#include "rdk/services/media/media_defs.h"
 #include "rdk/core/stream/send/media_stream.h"
 #include "rdk/core/chunk/media_chunk.h"
 #include "rdk/core/flow/flow.h"
+#include "rdk/services/media/media_settings.h"
+#include "rdk/services/utils/defs.h"
 
 using namespace rivermax::dev_kit::services;
 using namespace rivermax::dev_kit::core;
 
-MediaStreamSettings::MediaStreamSettings(const TwoTupleFlow& local_address,
+MediaStreamSettings::MediaStreamSettings(const std::vector<FourTupleFlow>& flows,
             const MediaSettings& media_settings,
-            size_t packets_per_chunk, uint16_t packet_payload_size,
-            size_t data_stride_size, size_t app_header_stride_size,
             uint8_t dscp, uint8_t pcp, uint8_t ecn) :
         IStreamSettings(s_build_steps),
-        m_local_address(local_address),
         m_media_settings(media_settings),
-        m_packets_per_chunk(packets_per_chunk),
-        m_packet_payload_size(packet_payload_size),
-        m_data_stride_size(data_stride_size),
-        m_app_header_stride_size(app_header_stride_size),
         m_dscp(dscp),
         m_pcp(pcp),
         m_ecn(ecn)
 {
+    std::vector<NetworkFlow> network_flows;
+    for (const auto& flow : flows) {
+        m_src_addresses.push_back(flow.get_source_flow());
+        m_dst_addresses.push_back(flow.get_destination_flow());
+        network_flows.emplace_back(flow.get_source_ip(), flow.get_destination_ip(), flow.get_destination_port());
+    }
+
+    m_sdp = m_media_settings.media_settings_calculator->generate_media_sdp(network_flows);
 }
 
 IStreamSettings<MediaStreamSettings, rmx_output_media_stream_params>::SetterSequence MediaStreamSettings::s_build_steps{
@@ -66,26 +68,26 @@ void MediaStreamSettings::stream_param_init(rmx_output_media_stream_params& desc
 
 void MediaStreamSettings::stream_param_set_sdp(rmx_output_media_stream_params& descr)
 {
-    rmx_output_media_set_sdp(&descr, m_media_settings.sdp.c_str());
-    rmx_output_media_set_idx_in_sdp(&descr, m_media_settings.media_block_index);
+    rmx_output_media_set_sdp(&descr, m_sdp.c_str());
+    rmx_output_media_set_idx_in_sdp(&descr, m_media_settings.sdp_media_block_index);
 }
 
 void MediaStreamSettings::stream_param_set_packets_per_chunk(rmx_output_media_stream_params& descr)
 {
-    rmx_output_media_set_packets_per_chunk(&descr, m_packets_per_chunk);
+    rmx_output_media_set_packets_per_chunk(&descr, m_media_settings.packets_in_chunk);
 }
 
 void MediaStreamSettings::stream_param_set_stride_sizes(rmx_output_media_stream_params& descr)
 {
-    if (m_app_header_stride_size) {
-        rmx_output_media_set_stride_size(&descr, 0, m_app_header_stride_size);
+    if (m_media_settings.app_header_stride_size) {
+        rmx_output_media_set_stride_size(&descr, 0, m_media_settings.app_header_stride_size);
     }
-    rmx_output_media_set_stride_size(&descr, m_app_header_stride_size ? 1 : 0, m_data_stride_size);
+    rmx_output_media_set_stride_size(&descr, m_media_settings.app_header_stride_size ? 1 : 0, m_media_settings.data_stride_size);
 }
 
 void MediaStreamSettings::stream_param_set_packets_per_frame(rmx_output_media_stream_params& descr)
 {
-    rmx_output_media_set_packets_per_frame(&descr, m_media_settings.packets_in_frame_field);
+    rmx_output_media_set_packets_per_frame(&descr, m_media_settings.get_packets_per_frame());
 }
 
 void MediaStreamSettings::stream_param_set_pcp(rmx_output_media_stream_params& descr)
@@ -120,6 +122,10 @@ void MediaStreamMemBlockset::set_block_memory(size_t idx, size_t sub_block_idx, 
 {
     auto& block = m_blocks[idx];
     rmx_mem_region* region = rmx_output_media_get_sub_block(&block, sub_block_idx);
+    if (!region) {
+        std::cerr << "Failed to get sub-block for index: " << idx << ", sub-block: " << sub_block_idx << std::endl;
+        return;
+    }
     region->addr = block_memory_start;
     region->length = block_memory_size;
     region->mkey = memory_key;
@@ -135,13 +141,17 @@ void MediaStreamMemBlockset::set_rivermax_to_allocate_memory()
 }
 
 void MediaStreamMemBlockset::set_dup_block_memory(size_t idx, size_t sub_block_idx, void* block_memory_start,
-            size_t block_memory_size, rmx_mkey_id memory_keys[])
+            size_t block_memory_size, const std::vector<rmx_mkey_id>& memory_keys)
 {
     auto& block = m_blocks[idx];
     rmx_mem_multi_key_region* multiregion = rmx_output_media_get_dup_sub_block(&block, sub_block_idx);
+    if (!multiregion) {
+        std::cerr << "Failed to get multi-key sub-block for index: " << idx << ", sub-block: " << sub_block_idx << std::endl;
+        return;
+    }
     multiregion->addr = block_memory_start;
     multiregion->length = block_memory_size;
-    for (size_t i = 0; i < RMX_MAX_DUP_STREAMS; i++) {
+    for (size_t i = 0; i < memory_keys.size(); i++) {
         multiregion->mkey[i] = memory_keys[i];
     }
 }
@@ -163,15 +173,14 @@ ReturnStatus MediaStreamMemBlockset::set_block_layout(size_t idx, uint16_t data_
 }
 
 MediaSendStream::MediaSendStream(const MediaStreamSettings& settings) :
-    ISendStream(settings.m_local_address),
+    ISendStream(settings.m_src_addresses),
     m_stream_settings(settings)
 {
     m_stream_settings.build(m_stream_settings, m_stream_params);
-    m_num_of_chunks = 0;
 }
 
 MediaSendStream::MediaSendStream(const MediaStreamSettings& settings, MediaStreamMemBlockset& mem_blocks) :
-    ISendStream(settings.m_local_address),
+    ISendStream(settings.m_src_addresses),
     m_stream_settings(settings)
 {
     m_stream_settings.build(m_stream_settings, m_stream_params);
@@ -208,20 +217,22 @@ ReturnStatus MediaSendStream::apply_memory_layout(const MediaMemoryLayoutRespons
 
 void MediaSendStream::assign_memory_blocks(MediaStreamMemBlockset& mem_blocks)
 {
-    m_num_of_chunks = mem_blocks.get_memory_block_count() * mem_blocks.get_chunks_per_block();
     rmx_output_media_assign_mem_blocks(&m_stream_params, mem_blocks.get_memory_blocks(),
             mem_blocks.get_memory_block_count());
 }
 
 std::ostream& MediaSendStream::print(std::ostream& out) const
 {
-    ISendStream::print(out);
+    std::string sdp = m_stream_settings.get_sdp();
+    std::istringstream sdp_stream(sdp);
+    std::string sdp_line;
+    std::ostringstream os;
 
-    out << "| SDP file: " << "\n"
-        << "---------------------------------------------------------------------------------------" << "\n"
-        << m_stream_settings.m_media_settings.sdp << "\n"
-        << "---------------------------------------------------------------------------------------" << "\n"
-        << "+**********************************************\n";
+    ISendStream::print(out);
+    out << "| SDP file: " << "\n";
+    while (std::getline(sdp_stream, sdp_line)) {
+        out << "|   " << sdp_line << "\n";
+    }
 
     return out;
 }

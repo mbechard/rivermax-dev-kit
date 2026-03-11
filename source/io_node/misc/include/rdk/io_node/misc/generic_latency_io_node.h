@@ -95,7 +95,7 @@ public:
         std::shared_ptr<MemoryUtils> payload_mem_utils,
         time_handler_ns_cb_t time_handler_cb);
     virtual ~GenericLatencyIONode() = default;
-    virtual std::ostream& print(std::ostream& out) const;
+    std::ostream& print(std::ostream& out) const override;
     /**
      * @brief: Overrides operator << for @ref GenericLatencyIONode reference.
      */
@@ -112,7 +112,7 @@ public:
         sender->print(out);
         return out;
     }
-    void initialize_send_stream() override;
+    ReturnStatus initialize_send_stream() override;
     void initialize_receive_stream(const TwoTupleFlow& flow) override;
     ReturnStatus query_memory_size(size_t& tx_header_size, size_t& tx_payload_size,
                                    size_t& rx_header_size, size_t& rx_payload_size) override;

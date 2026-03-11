@@ -29,6 +29,7 @@
 #include "rt_threads.h"
 
 #include "rdk/io_node/receivers/rtp_receiver_io_node.h"
+#include "rdk/services/protocol/media_packet_parser.h"
 #include "rdk/services/error_handling/error_handling.h"
 #include "rdk/services/cpu/affinity/affinity.h"
 #include "rdk/core/data_handler/receive_data_consumer_interface.h"
@@ -45,6 +46,8 @@ AppRTPReceiveStream::AppRTPReceiveStream(const ReceiveStreamSettings& settings,
     m_is_header_data_split(header_data_split),
     m_is_header_processing_enabled(process_headers)
 {
+    bool include_network_headers = (m_stream_settings.m_rx_type == RMX_INPUT_RAW_PACKET);
+    m_packet_parser = std::make_unique<MediaPacketParser>(include_network_headers);
 }
 
 void AppRTPReceiveStream::set_frame_start_handler(std::unique_ptr<IRTPEventHandler> event_handler)
@@ -55,7 +58,7 @@ void AppRTPReceiveStream::set_frame_start_handler(std::unique_ptr<IRTPEventHandl
 ReturnStatus AppRTPReceiveStream::get_next_chunk(ReceiveChunk& chunk)
 {
     ReturnStatus status = ReceiveStream::get_next_chunk(chunk);
-    if (status != ReturnStatus::success) {
+    if (status != ReturnStatus::success || chunk.get_length() == 0) {
         return status;
     }
     m_statistic.rx_count += chunk.get_length();
@@ -69,6 +72,10 @@ ReturnStatus AppRTPReceiveStream::get_next_chunk(ReceiveChunk& chunk)
     } else {
         header_ptr = reinterpret_cast<const byte_t*>(chunk.get_payload_ptr());
         stride_size = get_payload_stride_size();
+    }
+    if (unlikely(!header_ptr)) {
+        std::cerr << "Failed to get header pointer for RTP receive stream" <<std::endl;
+        return ReturnStatus::failure;
     }
     for (uint32_t stride_index = 0; stride_index < chunk.get_length(); ++stride_index, header_ptr += stride_size) {
         auto info = chunk.get_packet_info(stride_index);
@@ -186,17 +193,7 @@ void AppRTPReceiveStream::process_packet_header(const byte_t* header, size_t len
 
 bool AppRTPReceiveStream::get_sequence_number(const byte_t* header, size_t length, uint32_t& sequence_number) const
 {
-    if (length < 4 || (header[0] & 0xC0) != 0x80) {
-        return false;
-    }
-
-    sequence_number = header[3] | header[2] << 8;
-    if (m_is_extended_sequence_number) {
-        uint8_t cc = 0x0F & header[0];
-        uint8_t offset = cc * RTP_HEADER_CSRC_GRANULARITY_BYTES;
-        sequence_number |= (header[offset + 12] << 24) | (header[offset + 13] << 16);
-    }
-    return true;
+    return m_packet_parser->get_sequence_number(header, length, m_is_extended_sequence_number, sequence_number);
 }
 
 RTPReceiverIONode::RTPReceiverIONode(
@@ -217,7 +214,7 @@ void RTPReceiverIONode::initialize_streams(size_t start_id, const std::vector<Re
     m_data_consumers.reserve(flows.size());
     for (size_t id = start_id; id < start_id + m_flows.size(); ++id) {
         ReceiveStreamSettings stream_settings(TwoTupleFlow(id, m_devices[0], 0),  // Currently supporting receiving on one device.
-            RMX_INPUT_APP_PROTOCOL_PACKET,
+            m_app_settings.rx_stream_type,
             RMX_INPUT_TIMESTAMP_RAW_NANO,
             {RMX_INPUT_STREAM_CREATE_INFO_PER_PACKET},
             m_app_settings.num_of_packets_in_chunk,

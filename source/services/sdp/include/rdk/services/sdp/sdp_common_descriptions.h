@@ -35,6 +35,56 @@ namespace services
 {
 
 /**
+ * @brief: Group attribute (session-level).
+ *
+ * This class is responsible for constructing one "a=group" attribute part of the SDP string.
+ * It is based on the RFC5888 specification.
+ *
+ * Defines the group attribute:
+ *     a=group:<semantics> <mid> ...
+ *
+ * The group attribute is used for grouping media streams (e.g., for SMPTE 2022-7 duplication
+ * with "DUP" semantics).
+ */
+class GroupAttribute : public ISDP
+{
+public:
+    ~GroupAttribute() = default;
+    operator json() const override;
+    /**
+     * @brief: Builder class for constructing GroupAttribute objects.
+     */
+    class Builder : public ISDP::IBuilder<GroupAttribute, Builder>
+    {
+    public:
+        /**
+         * @brief: Constructor for mandatory parameters.
+         *
+         * @param [in] semantics: The grouping semantics (e.g., "DUP", "FID", "LS").
+         * @param [in] mids: The media identification tags for streams in the group.
+         */
+        explicit Builder(const std::string& semantics, const std::vector<std::string>& mids)
+            : ISDP::IBuilder<GroupAttribute, Builder>()
+        {
+            throw_if(semantics.empty() || mids.empty());
+            m_instance->m_semantics = semantics;
+            m_instance->m_mids = mids;
+        }
+    };
+protected:
+    /**
+     * @brief: Default constructor for GroupAttribute.
+     *
+     * This constructor is protected and only accessible by the Builder class and its subclasses.
+     */
+    GroupAttribute() = default;
+private:
+    std::string m_semantics;
+    std::vector<std::string> m_mids;
+
+    friend class ISDP::IBuilder<GroupAttribute, Builder>;
+};
+/**
  * @brief: SDP Session description builder.
  *
  * This class is responsible for constructing the session description part of the SDP string.
@@ -155,6 +205,20 @@ public:
         {
             return set(m_instance->m_session_name, session_name);
         }
+        /**
+         * @brief: Adds a group attribute to the session.
+         *
+         * This corresponds to the "a=group" line in SDP as per RFC5888.
+         *
+         * @param [in] group: The group attribute to add.
+         *
+         * @return: Reference to the builder object.
+         */
+        Builder& add_group(std::unique_ptr<GroupAttribute> group)
+        {
+            m_instance->m_groups.push_back(std::move(group));
+            return *this;
+        }
     };
 
 private:
@@ -173,6 +237,7 @@ private:
     AddressType m_address_type = AddressType::IP4;
     std::string m_unicast_address;
     std::string m_session_name;
+    std::vector<std::unique_ptr<GroupAttribute>> m_groups;
 
     friend class ISDP::IBuilder<SessionDescription, Builder>;
 };
@@ -268,7 +333,7 @@ struct FormatSpecificParameter
  */
 struct MediaFormatAttribute
 {
-    size_t format;
+    uint8_t format;
     std::vector<FormatSpecificParameter> parameters;
 };
 /**
@@ -284,7 +349,7 @@ struct MediaFormatAttribute
  */
 struct RTPMapAttribute
 {
-    size_t payload_type;
+    uint8_t payload_type;
     std::string encoding_name;
     size_t clock_rate;
     std::string encoding_parameters;
@@ -471,6 +536,155 @@ public:
             this->m_instance->m_connection_ttl = connection_ttl;
             return static_cast<ConcreteBuilder&>(*this);
         }
+        /**
+         * @brief: Sets the source filter attribute.
+         *
+         * This corresponds to the "a=source-filter" attribute in SDP as per RFC4570.
+         *
+         * @param [in] source_filter: The source filter attribute.
+         *
+         * @return: Reference to the builder object.
+         */
+        ConcreteBuilder& set_source_filter(std::shared_ptr<SourceFilterAttribute> source_filter)
+        {
+            return this->set(this->m_instance->m_source_filter, source_filter);
+        }
+        /**
+         * @brief: Sets the payload type.
+         *
+         * This corresponds to the <payload type> field in "a=rtpmap" attribute in SDP as per RFC4566.
+         *
+         * @param [in] payload_type: The payload type.
+         *
+         * @return: Reference to the builder object.
+         */
+        ConcreteBuilder& set_payload_type(uint8_t payload_type)
+        {
+            return this->set(this->m_instance->m_payload_type, payload_type);
+        }
+        /**
+         * @brief: Sets the media format.
+         *
+         * This corresponds to the <format> field in "a=fmtp" attribute in SDP as per RFC4566.
+         *
+         * @param [in] media_format: The media format.
+         *
+         * @return: Reference to the builder object.
+         */
+        ConcreteBuilder& set_media_format(uint8_t media_format)
+        {
+            return this->set(this->m_instance->m_media_format, media_format);
+        }
+        /**
+         * @brief: Sets the timestamp reference clock.
+         *
+         * This corresponds to the <ts-refclk> field in "a=ts-refclk" attribute in SDP as per SMPTE ST 2110-10.
+         *
+         * @param [in] timestamp_ref_clock: The timestamp reference clock.
+         *
+         * @return: Reference to the builder object.
+         */
+        ConcreteBuilder& set_timestamp_ref_clock(TimestampRefClock timestamp_ref_clock)
+        {
+            return this->set(this->m_instance->m_timestamp_ref_clock, timestamp_ref_clock);
+        }
+        /**
+         * @brief: Sets the PTP grandmaster clock identity for the timestamp reference clock.
+         *
+         * This corresponds to the <grandmaster-clock-identity> field in "a=ts-refclk" attribute in SDP as per SMPTE ST
+         * 2110-10.
+         *
+         * @param [in] timestamp_ref_clock_ptp_grandmaster_clock_identity: The PTP grandmaster clock identity.
+         *
+         * @return: Reference to the builder object.
+         */
+        ConcreteBuilder& set_timestamp_ref_clock_ptp_grandmaster_clock_identity(
+            const std::string& grandmaster_clock_identity)
+        {
+            return this->set(
+                this->m_instance->m_timestamp_ref_clock_ptp_grandmaster_clock_identity,
+                grandmaster_clock_identity);
+        }
+        /**
+         * @brief: Sets the PTP domain number for the timestamp reference clock.
+         *
+         * This corresponds to the <domain-number> field in "a=ts-refclk" attribute in SDP as per SMPTE ST 2110-10.
+         *
+         * @param [in] timestamp_ref_clock_ptp_domain_number: The PTP domain number.
+         *
+         * @return: Reference to the builder object.
+         */
+        ConcreteBuilder& set_timestamp_ref_clock_ptp_domain_number(size_t domain_number)
+        {
+            return this->set(this->m_instance->m_timestamp_ref_clock_ptp_domain_number, domain_number);
+        }
+        /**
+         * @brief: Sets the traceable flag for the PTP timestamp reference clock.
+         *
+         * This corresponds to the <traceable> field in "a=ts-refclk" attribute in SDP as per SMPTE ST 2110-10.
+         *
+         * @param [in] timestamp_ref_clock_ptp_traceable: The traceable flag.
+         *
+         * @return: Reference to the builder object.
+         */
+        ConcreteBuilder& set_timestamp_ref_clock_ptp_traceable(bool traceable)
+        {
+            return this->set(this->m_instance->m_timestamp_ref_clock_ptp_traceable, traceable);
+        }
+        /**
+         * @brief: Sets the local MAC address for the timestamp reference clock.
+         *
+         * This corresponds to the <localmac> field in "a=ts-refclk" attribute in SDP as per SMPTE ST 2110-10.
+         *
+         * @param [in] timestamp_ref_clock_local_mac: The local MAC address.
+         *
+         * @return: Reference to the builder object.
+         */
+        ConcreteBuilder& set_timestamp_ref_clock_local_mac(const std::string& local_mac)
+        {
+            return this->set(this->m_instance->m_timestamp_ref_clock_local_mac, local_mac);
+        }
+        /**
+         * @brief: Sets the media clock.
+         *
+         * This corresponds to the <mediaclk> field in "a=mediaclk" attribute in SDP as per SMPTE ST 2110-10.
+         *
+         * @param [in] media_clock: The media clock.
+         *
+         * @return: Reference to the builder object.
+         */
+        ConcreteBuilder& set_media_clock(MediaClock media_clock)
+        {
+            return this->set(this->m_instance->m_media_clock, media_clock);
+        }
+        /**
+         * @brief: Sets the extra format specific parameters.
+         *
+         * This corresponds to the <format specific parameters> field in "a=fmtp" attribute in SDP as per SMPTE ST 2110-20.
+         * It allows to add extra format specific parameters to the media description.
+         *
+         * @param [in] extra_format_specific_parameters: The extra format specific parameters.
+         *
+         * @return: Reference to the builder object.
+         */
+        ConcreteBuilder& set_extra_format_specific_parameters(
+            const std::vector<FormatSpecificParameter>& extra_format_specific_parameters)
+        {
+            return this->set(this->m_instance->m_extra_format_specific_parameters, extra_format_specific_parameters);
+        }
+        /**
+         * @brief: Sets the media ID.
+         *
+         * This corresponds to the <mid> field in "a=mid" attribute in SDP as per SMPTE ST 2110-20.
+         *
+         * @param [in] media_id: The media ID.
+         *
+         * @return: Reference to the builder object.
+         */
+        ConcreteBuilder& set_media_id(const std::string& media_id)
+        {
+            return this->set(this->m_instance->m_media_id, media_id);
+        }
     };
 
 protected:
@@ -529,6 +743,30 @@ protected:
      * @return: The constructed RTP map JSON attribute.
      */
     json get_rtp_map_attribute(const std::vector<RTPMapAttribute>& formats) const;
+    /**
+     * @brief: Returns the ptime attribute.
+     *
+     * @param [in] ptime_ms: The packet time in milliseconds.
+     *
+     * @return: The constructed ptime JSON attribute.
+     */
+    json get_ptime_attribute(double ptime_ms) const;
+    /**
+     * @brief: Returns the maxptime attribute.
+     *
+     * @param [in] maxptime_ms: The maximum packet time in milliseconds.
+     *
+     * @return: The constructed maxptime JSON attribute.
+     */
+    json get_maxptime_attribute(double maxptime_ms) const;
+    /**
+     * @brief: Returns the media ID attribute.
+     *
+     * @param [in] media_id: The media ID.
+     *
+     * @return: The constructed media ID JSON attribute.
+     */
+    json get_media_id_attribute(const std::string& media_id) const;
 
     MediaType m_media_type = MediaType::Unknown;
     size_t m_transport_port = 0;
@@ -537,6 +775,7 @@ protected:
     AddressType m_address_type = AddressType::IP4;
     std::string m_connection_address;
     size_t m_connection_ttl = 64;
+    std::string m_media_id;
 };
 
 } // namespace services

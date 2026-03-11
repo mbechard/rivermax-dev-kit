@@ -24,8 +24,10 @@
 #include <vector>
 #include <memory>
 
+#include <rivermax_api.h>
+
 #include "rdk/services/utils/defs.h"
-#include "rdk/services/media/media_defs.h"
+#include "rdk/services/media/app_media_settings.h"
 
 namespace rivermax
 {
@@ -45,7 +47,6 @@ struct AppSettings
     int sleep_between_operations_us;
     bool sleep_between_operations;
     std::string local_ip;
-    std::string local_mac;
     std::vector<std::string> local_ips;
     std::string source_ip;
     std::vector<std::string> source_ips;
@@ -61,7 +62,6 @@ struct AppSettings
     std::vector<int> app_threads_cores;
     bool print_parameters;
     PacketPacingRate rate;
-    size_t num_of_memory_blocks;
     size_t num_of_chunks_in_mem_block;
     size_t num_of_chunks;
     size_t num_of_packets_in_chunk;
@@ -74,18 +74,22 @@ struct AppSettings
     int gpu_id;
     bool lock_gpu_clocks;
     AllocatorTypeUI allocator_type;
-    MediaSettings media;
+    AppMediaSettings media;
     bool ref_clk_is_ptp;
     uint32_t session_id_stats;
     bool register_memory;
     bool header_data_split;
     bool app_memory_alloc;
+    bool enable_redundancy;
     bool enable_statistics_reader;
     int statistics_reader_core;
     uint32_t stats_report_interval_ms;
     std::string video_file;
-    bool dynamic_video_file_load;
     bool use_signal_handler;
+    std::string audio_file;
+    std::string ancillary_file;
+    bool dynamic_media_file_load;
+    rmx_input_stream_params_type rx_stream_type;
 public:
     /**
      * @brief: Default destructor.
