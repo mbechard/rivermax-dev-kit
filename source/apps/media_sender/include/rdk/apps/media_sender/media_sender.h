@@ -149,6 +149,7 @@ public:
     MediaSenderApp(std::unique_ptr<ISettingsBuilder<MediaSenderSettings>> settings_builder);
     virtual ~MediaSenderApp() = default;
     ReturnStatus run() override;
+    void stop();
     /**
      * @brief: Initializes SMPTE standards configuration.
      *

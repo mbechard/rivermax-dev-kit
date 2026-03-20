@@ -90,6 +90,7 @@ struct AppSettings
     std::string ancillary_file;
     bool dynamic_media_file_load;
     rmx_input_stream_params_type rx_stream_type;
+    bool non_blocking_run;
 public:
     /**
      * @brief: Default destructor.

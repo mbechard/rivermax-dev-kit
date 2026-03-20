@@ -315,7 +315,10 @@ ReturnStatus MediaSenderApp::run()
     }
 
     try {
-        run_threads(m_senders);
+        if (m_app_settings->non_blocking_run)
+            run_threads_non_blocking(m_senders);
+        else
+            run_threads(m_senders);
     }
     catch (const std::exception & error) {
         std::cerr << error.what() << std::endl;
@@ -323,6 +326,13 @@ ReturnStatus MediaSenderApp::run()
     }
 
     return ReturnStatus::success;
+}
+
+void MediaSenderApp::stop()
+{
+    for (auto& s : m_senders) {
+        s->stop();
+    }
 }
 
 ReturnStatus MediaSenderApp::set_rivermax_clock()

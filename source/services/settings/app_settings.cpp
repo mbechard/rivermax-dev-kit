@@ -62,4 +62,5 @@ void AppSettings::init_default_values()
     dynamic_media_file_load = false;
     rx_stream_type = RMX_INPUT_APP_PROTOCOL_PACKET;
     num_of_packets_in_chunk_specified = false;
+    non_blocking_run = false;
 }

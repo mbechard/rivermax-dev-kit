@@ -518,7 +518,7 @@ void MediaSenderIONode::operator()()
     }
 
     auto stats_start_time = high_resolution_clock::now();
-    while (likely(rc != ReturnStatus::failure && SignalHandler::get_received_signal() < 0)) {
+    while (likely(rc != ReturnStatus::failure && !should_stop())) {
         chunk_in_media_unit_counter = 0;
         send_time_ns = get_send_time_ns();
         wait_for_next_media_unit(static_cast<uint64_t>(send_time_ns));
