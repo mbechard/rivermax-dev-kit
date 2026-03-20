@@ -202,6 +202,11 @@ MediaSenderApp::MediaSenderApp(std::unique_ptr<ISettingsBuilder<MediaSenderSetti
 
 ReturnStatus MediaSenderApp::post_load_settings()
 {
+    auto rc = BaseApp::post_load_settings();
+    if (rc != ReturnStatus::success) {
+        std::cerr << "Failed to initialize media settings" << std::endl;
+        return rc;
+    }
     if(m_app_settings->media.enable_video) {
         m_media_sender_settings->enabled_smpte_standards.insert(SMPTEStandard::ST_2110_20);
     }
