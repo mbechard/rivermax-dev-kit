@@ -770,6 +770,18 @@ bool MediaSenderIONode::should_stop() const
     return m_stop_requested.load() || (m_app_settings.use_signal_handler && SignalHandler::get_received_signal() >= 0);
 }
 
+void MediaSenderIONode::stop()
+{
+    m_stop_requested.store(true);
+    for (auto& m : m_stream_packs)
+    {
+        if (m.preload_essence_source)
+			m.preload_essence_source->stop();
+        if (m.runtime_essence_source)
+            m.runtime_essence_source->stop();
+    }
+}
+
 void MediaSenderIONode::print_statistics(
     std::ostream& out, const std::chrono::high_resolution_clock::duration& interval_duration) const
 {

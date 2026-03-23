@@ -245,9 +245,6 @@ public:
      *
      * @return: Status of the operation.
      */
-
-    void stop() { m_stop_requested.store(true); }
-
     ReturnStatus set_media_essence_sources(
         size_t stream_index,
         SMPTEStandard smpte_standard,
@@ -261,6 +258,7 @@ public:
      */
     void set_synchronizer(const std::shared_ptr<ISynchronizer>& synchronizer) { m_synchronizer = synchronizer; }
     static constexpr size_t DEFAULT_NUMBER_OF_MEM_BLOCKS = 1;
+    void stop();
 protected:
     /**
      * @brief: Prints sender statistics.
