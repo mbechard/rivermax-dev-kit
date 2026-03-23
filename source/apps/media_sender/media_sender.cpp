@@ -600,7 +600,10 @@ ReturnStatus MediaSenderApp::set_internal_media_essence_sources()
                     nullptr,
                     std::move(essence_source));
             } else {
-                if (smpte_standard_config.media_file.empty()) {
+                if (m_media_sender_settings->essence_source_creator) {
+                    essence_source = m_media_sender_settings->essence_source_creator(smpte_standard_config, m_header_allocator);
+                }
+                else if (smpte_standard_config.media_file.empty()) {
                     essence_source = std::make_shared<NullEssenceSource>(smpte_standard_config);
                 } else {
                     auto media_file_essence_source = std::make_shared<MediaFileEssenceSource>(
