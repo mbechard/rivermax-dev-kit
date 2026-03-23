@@ -46,6 +46,7 @@ void MediaSenderSettings::init_default_values()
     media.frames_fields_in_mem_block = MediaSenderSettings::DEFAULT_FRAME_FIELDS_IN_MEM_BLOCK;
     media.resolution = { _1080_WIDTH, _1080_HEIGHT };
     num_of_packets_in_chunk = get_default_packets_in_chunk(media.resolution);
+    setup_rivermax_clock = false;
 }
 
 ReturnStatus MediaSenderSettingsValidator::validate(const MediaSenderSettings& settings) const
@@ -342,7 +343,10 @@ void MediaSenderApp::stop()
 
 ReturnStatus MediaSenderApp::set_rivermax_clock()
 {
-    ReturnStatus rc = set_rivermax_ptp_clock(&m_device_interfaces[0]);
+    ReturnStatus rc = ReturnStatus::success;
+    if (m_media_sender_settings->setup_rivermax_clock) {
+        rc = set_rivermax_ptp_clock(&m_device_interfaces[0]);
+    }
     if(rc == ReturnStatus::success) {
         uint64_t ptp_time = 0;
         rc = get_rivermax_ptp_time_ns(ptp_time);
