@@ -60,7 +60,7 @@ const EnumNameArray<Colorimetry> EnumMapper<Colorimetry>::names = {
 };
 template <>
 const EnumNameArray<Transfer> EnumMapper<Transfer>::names = {
-    "SDR", "PQ", "HLG", "Linear", "Log", "LogSqrt", "BT2100PQ", "BT2100HLG", "ST248", "SDRNarrow"
+    "SDR", "PQ", "HLG", "LINEAR", "BT2100LINPQ", "BT2100LINHLG", "ST2065_1", "ST248_1", "DENSITY", "ST2115LOGS3"
 };
 template <>
 const EnumNameArray<PackagingMode> EnumMapper<PackagingMode>::names = {
