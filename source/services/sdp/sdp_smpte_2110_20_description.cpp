@@ -37,6 +37,7 @@ std::vector<json> SMPTE2110_20_MediaDescription::get_media_description_attribute
         {"exactframerate", m_exact_frame_rate},
         {"depth", enum_to_string(m_depth)},
         {"colorimetry", enum_to_string(m_colorimetry)},
+        {"TCS", enum_to_string(m_transfer)},
         {"PM", enum_to_string(m_packaging_mode)},
         {"SSN", enum_to_string(m_smpte_standard_number)},
         {"TP", enum_to_string(m_sender_type)},

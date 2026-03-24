@@ -59,6 +59,10 @@ const EnumNameArray<Colorimetry> EnumMapper<Colorimetry>::names = {
     "BT601", "BT709", "BT2020", "BT2100", "ST2065-1", "ST2065-3", "UNSPECIFIED", "XYZ", "ALPHA"
 };
 template <>
+const EnumNameArray<Transfer> EnumMapper<Transfer>::names = {
+    "SDR", "PQ", "HLG", "Linear", "Log", "LogSqrt", "BT2100PQ", "BT2100HLG", "ST248", "SDRNarrow"
+};
+template <>
 const EnumNameArray<PackagingMode> EnumMapper<PackagingMode>::names = {
     "2110GPM", "2110BPM"
 };

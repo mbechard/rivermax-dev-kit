@@ -169,6 +169,26 @@ enum class Colorimetry
     Unknown
 };
 /**
+ * @brief: Enum class for transfer (TCS) values.
+ *
+ * This corresponds to the <TCS> field in "a=fmtp" attribute in SDP as per SMPTE ST 2110-20.
+ */
+enum class Transfer
+{
+    SDR,
+    PQ,
+    HLG,
+    Linear,
+    Log,
+    LogSqrt,
+    BT2100PQ,
+    BT2100HLG,
+    ST248,
+    SDRNarrow,
+
+    Unknown
+};
+/**
  * @brief: Enum class for packaging modes.
  *
  * This corresponds to the <PM> field in "a=fmtp" attribute in SDP as per SMPTE ST 2110-20.

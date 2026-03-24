@@ -165,6 +165,16 @@ public:
          */
         Builder& set_colorimetry(Colorimetry colorimetry) { return set(m_instance->m_colorimetry, colorimetry); }
         /**
+         * @brief: Sets the transfer.
+         *
+         * This corresponds to the <TCS> field in "a=fmtp" attribute in SDP as per SMPTE ST 2110-20.
+         *
+         * @param [in] transfer: The transfer.
+         *
+         * @return: Reference to the builder object.
+         */
+        Builder& set_transfer(Transfer transfer) { return set(m_instance->m_transfer, transfer); }
+        /**
          * @brief: Sets the packaging mode.
          *
          * This corresponds to the <PM> field in "a=fmtp" attribute in SDP as per SMPTE ST 2110-20.
@@ -278,6 +288,7 @@ private:
     size_t m_height = 1080;
     std::string m_exact_frame_rate = "60";
     Colorimetry m_colorimetry = Colorimetry::BT709;
+    Transfer m_transfer = Transfer::SDR;
     PackagingMode m_packaging_mode = PackagingMode::_2110GPM;
     SMPTEStandardNumber m_smpte_standard_number = SMPTEStandardNumber::ST2110_20_2017;
     SenderType m_sender_type = SenderType::_2110TPN;
