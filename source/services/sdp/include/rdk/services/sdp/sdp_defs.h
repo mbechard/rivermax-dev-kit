@@ -185,6 +185,7 @@ enum class Transfer
     ST248_1,
     DENSITY,
     ST2115LOGS3,
+    UNSPECIFIED,
 
     Unknown
 };
