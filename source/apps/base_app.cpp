@@ -177,7 +177,7 @@ ReturnStatus BaseApp::initialize_rivermax_resources()
 {
     rt_set_realtime_class();
     ReturnStatus rc = m_rivermax_dev_kit.initialize_rivermax(
-        m_rivermax_lib_handle, m_app_settings->internal_thread_core);
+        m_rivermax_lib_handle, m_app_settings->internal_thread_core, m_app_settings->use_signal_handler);
     if (rc != ReturnStatus::success) {
         std::cerr << "Failed to initialize Rivermax resources" << std::endl;
         return rc;
