@@ -189,13 +189,6 @@ protected:
     ReturnStatus detach_flows() override { return process_flows(false); }
     ReturnStatus consume_chunk(std::unique_ptr<IReceiveDataConsumer>& data_consumer,
         const ReceiveChunk& chunk, IReceiveStream& stream) override;
-
-    /**
-     * @brief: Override this to use a different class as the data comsumer.
-     */
-    virtual std::unique_ptr<IReceiveDataConsumer> create_consumer();
-    virtual std::unique_ptr<AppRTPReceiveStream> create_stream(const ReceiveStreamSettings& settings,
-        bool is_extended_sequence_number, bool header_data_split, bool process_headers);
 private:
     /**
      * @brief: Helper method for attaching or detaching flows to/from streams.
