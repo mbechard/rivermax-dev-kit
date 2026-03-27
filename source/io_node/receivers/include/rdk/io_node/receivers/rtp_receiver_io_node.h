@@ -99,6 +99,13 @@ public:
      * @param [in] event_handler: Pointer to event handler.
      */
     void set_frame_start_handler(std::unique_ptr<IRTPEventHandler> event_handler);
+
+    bool is_extended_sequence_number() const {
+        return m_is_extended_sequence_number;
+    }
+
+    bool has_option(rmx_input_option checkOption) const;
+
 private:
     /**
      * @brief: Handles received packet.

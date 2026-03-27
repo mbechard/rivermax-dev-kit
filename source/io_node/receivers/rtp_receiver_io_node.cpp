@@ -196,6 +196,17 @@ bool AppRTPReceiveStream::get_sequence_number(const byte_t* header, size_t lengt
     return m_packet_parser->get_sequence_number(header, length, m_is_extended_sequence_number, sequence_number);
 }
 
+
+bool AppRTPReceiveStream::has_option(rmx_input_option checkOption) const
+{
+	for (auto& o : m_stream_settings.m_options)
+	{
+		if (checkOption & o)
+			return true;
+	}
+	return false;
+}
+
 RTPReceiverIONode::RTPReceiverIONode(
     const AppSettings& app_settings,
     bool is_extended_sequence_number,
