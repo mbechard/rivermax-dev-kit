@@ -213,13 +213,6 @@ protected:
     template<typename T>
     void run_threads(T& io_nodes);
     /**
-     * @brief: Runs application threads, just like run_threads(), but non-blocking.
-     *
-     * @param [in] io_nodes: A container of IONodes, it should follow STL containers interface.
-     */
-    template<typename T>
-    void run_threads_non_blocking(T& io_nodes);
-    /**
      * @brief: Runs statistics reader thread.
      *
      * @return: Status of the operation.
@@ -256,17 +249,14 @@ protected:
 };
 
 template<typename T>
-void BaseApp::run_threads_non_blocking(T& io_nodes)
+void BaseApp::run_threads(T& io_nodes)
 {
     for (auto& io_node : io_nodes) {
         m_threads.push_back(std::thread(std::ref(*io_node)));
     }
-}
 
-template<typename T>
-void BaseApp::run_threads(T& io_nodes)
-{
-    run_threads_non_blocking(io_nodes);
+    if (m_app_settings->non_blocking_run)
+        return;
 
     for (auto& thread : m_threads) {
         thread.join();

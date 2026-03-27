@@ -321,10 +321,7 @@ ReturnStatus MediaSenderApp::run()
     }
 
     try {
-        if (m_app_settings->non_blocking_run)
-            run_threads_non_blocking(m_senders);
-        else
-            run_threads(m_senders);
+        run_threads(m_senders);
     }
     catch (const std::exception & error) {
         std::cerr << error.what() << std::endl;
