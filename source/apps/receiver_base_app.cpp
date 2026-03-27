@@ -73,6 +73,13 @@ ReturnStatus ReceiverBaseApp::run()
     return ReturnStatus::success;
 }
 
+void ReceiverBaseApp::stop()
+{
+    for (auto& r : m_receivers) {
+        r->stop();
+    }
+}
+
 void ReceiverBaseApp::distribute_work_for_threads()
 {
     m_app_settings->num_of_threads = std::min<size_t>(m_app_settings->num_of_threads, m_app_settings->num_of_total_streams);

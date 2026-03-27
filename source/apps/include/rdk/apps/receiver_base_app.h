@@ -54,6 +54,7 @@ public:
     virtual ~ReceiverBaseApp() = default;
     ReturnStatus run() override;
     ReturnStatus initialize() override;
+    void stop();
     /**
      * @brief: Sets the receive data consumer for the specified stream index.
      *
