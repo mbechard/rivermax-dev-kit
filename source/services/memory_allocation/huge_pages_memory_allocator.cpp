@@ -60,6 +60,10 @@ void* HugePagesMemoryAllocator::allocate(const size_t length)
 
 size_t HugePagesMemoryAllocator::align_length(size_t length)
 {
+    if (!m_page_size) {
+	    return 0;
+    }
+	
     size_t factor = length / m_page_size;
     factor += (length % m_page_size > 0) ? 1 : 0;
     return factor * m_page_size;
