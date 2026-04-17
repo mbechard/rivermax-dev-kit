@@ -1,6 +1,6 @@
 /*
  * SPDX-FileCopyrightText: NVIDIA CORPORATION & AFFILIATES
- * Copyright (c) 2025 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+ * Copyright (c) 2025-2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
  * SPDX-License-Identifier: Apache-2.0
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -26,13 +26,12 @@
 
 #include "rdk/services/protocol/media_packet_parser.h"
 
-namespace rivermax {
-namespace dev_kit {
+namespace rdk {
 namespace services {
 
 bool MediaPacketParser::get_sequence_number(const byte_t* data, size_t length, bool is_extended, uint32_t& sequence_number) const
 {
-    const RTPHeader* rtp_header = rtp(data);
+    const protocol::RTPHeader* rtp_header = rtp(data);
     if (!rtp_header) {
         return false;
     }
@@ -46,11 +45,11 @@ bool MediaPacketParser::get_sequence_number(const byte_t* data, size_t length, b
     return true;
 }
 
-uint16_t MediaPacketParser::get_extended_sequence_number_from_rtp(const RTPHeader* rtp_header, const byte_t* data, size_t length) const
+uint16_t MediaPacketParser::get_extended_sequence_number_from_rtp(const protocol::RTPHeader* rtp_header, const byte_t* data, size_t length) const
 {
     uint8_t csrc_count = rtp_header->vpxcc & 0x0F;
     const byte_t* esn_ptr = reinterpret_cast<const byte_t*>(rtp_header) +
-                           sizeof(RTPHeader) +
+                           sizeof(protocol::RTPHeader) +
                            csrc_count * 4;
 
     if (esn_ptr + 2 > data + length) {
@@ -60,5 +59,4 @@ uint16_t MediaPacketParser::get_extended_sequence_number_from_rtp(const RTPHeade
 }
 
 } // namespace services
-} // namespace dev_kit
-} // namespace rivermax
+} // namespace rdk

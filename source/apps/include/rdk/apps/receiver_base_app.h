@@ -1,6 +1,6 @@
 /*
  * SPDX-FileCopyrightText: NVIDIA CORPORATION & AFFILIATES
- * Copyright (c) 2025 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+ * Copyright (c) 2025-2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
  * SPDX-License-Identifier: Apache-2.0
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -27,12 +27,10 @@
 
 #include "rdk/apps/base_app.h"
 
-using namespace rivermax::dev_kit::io_node;
-using namespace rivermax::dev_kit::core;
+using namespace rdk::io_node;
+using namespace rdk::core;
 
-namespace rivermax
-{
-namespace dev_kit
+namespace rdk
 {
 namespace apps
 {
@@ -104,17 +102,15 @@ protected:
      * @brief: Runs application threads.
      */
     virtual void run_receiver_threads() = 0;
-
-private:
     /**
      * @brief: Distributes work for threads.
      *
      * This method is responsible for distributing work to threads, by
      * distributing number of streams per receiver thread uniformly.
-     * In future development, this can be extended to different
-     * streams per thread distribution policies.
+     * Derived classes may override to use a custom distribution (e.g. from
+     * media-type-specific node layout).
      */
-    void distribute_work_for_threads();
+    virtual void distribute_work_for_threads();
 };
 
 template<typename StatisticsType, typename ReceiverStreamType>
@@ -131,7 +127,6 @@ std::vector<StatisticsType> ReceiverBaseApp::get_streams_total_statistics() cons
 }
 
 } // namespace apps
-} // namespace dev_kit
-} // namespace rivermax
+} // namespace rdk
 
 #endif /* RDK_APPS_RECEIVER_BASE_APP_H_ */

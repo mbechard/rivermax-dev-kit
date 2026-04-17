@@ -29,17 +29,13 @@
 #include "rdk/services/media/app_media_settings.h"
 #include "rdk/services/media/media_settings.h"
 
-using namespace rivermax::dev_kit::io_node;
-using namespace rivermax::dev_kit::services;
-using namespace rivermax::dev_kit::core;
+using namespace rdk::io_node;
+using namespace rdk::services;
+using namespace rdk::core;
 
-namespace rivermax
-{
-namespace dev_kit
+namespace rdk
 {
 namespace apps
-{
-namespace media_sender
 {
 /**
  * @brief: Configuration settings for Rivermax Dev Kit Media Sender.
@@ -318,9 +314,7 @@ private:
     ReturnStatus set_internal_media_essence_sources();
 };
 
-} // namespace media_sender
 } // namespace apps
-} // namespace dev_kit
-} // namespace rivermax
+} // namespace rdk
 
 #endif /* RDK_APPS_MEDIA_SENDER_MEDIA_SENDER_H_ */

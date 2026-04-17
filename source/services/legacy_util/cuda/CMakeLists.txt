@@ -1,5 +1,5 @@
 # SPDX-FileCopyrightText: NVIDIA CORPORATION & AFFILIATES
-# Copyright (c) 2025 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+# Copyright (c) 2025-2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -41,9 +41,14 @@ FetchContent_Declare(
     GIT_REPOSITORY https://github.com/NVIDIA/cuda-samples.git
     GIT_TAG        v13.1
     GIT_SHALLOW    TRUE
+    SOURCE_SUBDIR  _unused
 )
 
-FetchContent_Populate(cuda_samples)
+FetchContent_MakeAvailable(cuda_samples)
+
+if(UNIX)
+    file(REMOVE_RECURSE "${cuda_samples_SOURCE_DIR}/Common/GL")
+endif()
 
 add_library(rivermax-dev-kit-cuda-helpers INTERFACE)
 target_include_directories(rivermax-dev-kit-cuda-helpers INTERFACE
@@ -52,11 +57,15 @@ target_include_directories(rivermax-dev-kit-cuda-helpers INTERFACE
 
 target_link_libraries(${PROJECT_NAME} PUBLIC rivermax-dev-kit-cuda-helpers)
 
-# Ensure CUDA uses dynamic runtime to match the rest of the project
 if(MSVC)
+    set_target_properties(${PROJECT_NAME} PROPERTIES CUDA_RUNTIME_LIBRARY Shared)
+    if(CUDAToolkit_VERSION_MAJOR GREATER_EQUAL 13)
+        file(GLOB cuda_sources "*.cu")
+        set_source_files_properties(${cuda_sources} PROPERTIES
+            VS_SETTINGS "CudaRuntime=Hybrid")
+        target_link_options(${PROJECT_NAME} INTERFACE /NODEFAULTLIB:LIBCMT)
+    endif()
     set_target_properties(${PROJECT_NAME} PROPERTIES
-        # Use dynamic CUDA runtime library (cudart.dll) instead of static (cudart_static.lib)
-        CUDA_RUNTIME_LIBRARY Shared
         MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>DLL"
         # Disable LTO/IPO for CUDA - nvcc doesn't fully support MSVC's /GL and /LTCG flags
         INTERPROCEDURAL_OPTIMIZATION OFF

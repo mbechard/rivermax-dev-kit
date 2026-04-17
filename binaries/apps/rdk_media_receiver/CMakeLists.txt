@@ -1,5 +1,5 @@
 # SPDX-FileCopyrightText: NVIDIA CORPORATION & AFFILIATES
-# Copyright (c) 2025 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+# Copyright (c) 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -14,16 +14,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-target_sources(${PROJECT_NAME}
-    PUBLIC
-        freeglut.h
-        freeglut_ext.h
-        freeglut_std.h
-        glew.h
-        glext.h
-        glut.h
-        glxew.h
-        glxext.h
-        wglew.h
-        wglext.h
+project(rdk_media_receiver)
+
+create_rdk_app_executable(
+    NAME ${PROJECT_NAME}
+    SOURCES main.cpp
+    LIBRARIES rivermax-dev-kit-apps-media-receiver
 )

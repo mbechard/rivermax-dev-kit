@@ -1,6 +1,6 @@
 /*
  * SPDX-FileCopyrightText: NVIDIA CORPORATION & AFFILIATES
- * Copyright (c) 2025 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+ * Copyright (c) 2025-2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
  * SPDX-License-Identifier: Apache-2.0
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -25,15 +25,13 @@
 #include <sstream>
 #include <string>
 
-#include "rdk/apps/ipmx_receiver/stream_timeline_tracker.h"
 #include "rdk/services/error_handling/return_status.h"
 #include "rdk/services/error_handling/error_handling.h"
 #include "rdk/services/utils/clock.h"
 #include "rdk/services/utils/counter_math.h"
+#include "rdk/apps/ipmx_receiver/stream_timeline_tracker.h"
 
-using namespace rivermax::dev_kit::apps::ipmx_receiver;
-
-using namespace rivermax::dev_kit::apps::ipmx_receiver;
+using namespace rdk::apps;
 
 IPMXStreamTimelineTracker::IPMXStreamTimelineTracker(uint32_t ipmx_stream_id) :
     m_ipmx_stream_id(ipmx_stream_id),
@@ -75,7 +73,6 @@ void IPMXStreamTimelineTracker::IPMXSenderReportState::update(uint32_t ipmx_stre
     stats.reports_received++;
     stats.last_report_rx_ts = info.get_packet_timestamp();
     size_t len = info.get_packet_sub_block_size(0);
-
 
     auto status = last_report.fill_from_rtcp_sr_packet(data, len);
     if (status == ReturnStatus::success) {

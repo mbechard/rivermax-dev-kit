@@ -1,6 +1,6 @@
 /*
  * SPDX-FileCopyrightText: NVIDIA CORPORATION & AFFILIATES
- * Copyright (c) 2025 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+ * Copyright (c) 2025-2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
  * SPDX-License-Identifier: Apache-2.0
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -19,38 +19,10 @@
 #include <cstring>
 
 #include "rdk/services/ulp_packet/writers/rtp_smpte_2110_20_packet_writer.h"
+#include "rdk/services/ulp_packet/network_byte_order.h"
+#include "rdk/services/ulp_packet/rtp_smpte_2110_20_extension.h"
 
-using namespace rivermax::dev_kit::services;
-
-/**
- * @brief: ST 2110-20 SRD RTP extension header.
- *
- * RTP header extension for ST 2110-20 Sample Row Data (SRD) packets
- * based on section 4.2 of RFC 4175 - RTP Payload Format for Uncompressed Video.
- */
-struct SRDHeader {
-    uint16_t sequence_number;                /**< Extended Sequence Number: 16 bits */
-    uint16_t srd_length;                     /**< SRD Length: 16 bits */
-
-    uint8_t srd_line_number_8_to_14_7bit: 7; /**< SRD line number: 15 bits */
-    uint8_t f: 1;                            /**< Identifies which field the scan line belongs to,
-                                                  for interlaced data : 1 bit */
-    uint8_t srd_line_number_0_to_7_8bit;     /**< SRD line number: 15 bits */
-
-    uint8_t srd_offset_8_to_14_7bit: 7;      /**< SRD offset: 15 bits */
-    uint8_t c: 1;                            /**< Field identification: 1 bit */
-    uint8_t srd_offset_0_to_7_8bit;          /**< SRD offset: 15 bits */
-
-    void set_srd_line_number(uint16_t srd_line_number) {
-        srd_line_number_0_to_7_8bit = static_cast<uint8_t>(srd_line_number);
-        srd_line_number_8_to_14_7bit = static_cast<uint8_t>(srd_line_number >> 8);
-    }
-
-    void set_srd_offset(uint16_t srd_offset) {
-        srd_offset_0_to_7_8bit = static_cast<uint8_t>(srd_offset);
-        srd_offset_8_to_14_7bit = static_cast<uint8_t>(srd_offset >> 8);
-    }
-};
+using namespace rdk::services;
 
 RTP_SMPTE_2110_20_PacketWriter::RTP_SMPTE_2110_20_PacketWriter(byte_t* header_ptr, byte_t* payload_ptr)
     : RTPPacketWriter(header_ptr, payload_ptr)

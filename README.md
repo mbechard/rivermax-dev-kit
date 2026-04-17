@@ -41,12 +41,12 @@ The Rivermax Dev Kit integrates seamlessly into the Rivermax software stack:
 
 The kit is organized into four primary modules, each with its corresponding namespace:
 
-- **Apps**: Application-level functionality (`rivermax::dev_kit::apps`)
-- **IO Node**: Input/output management (`rivermax::dev_kit::io_node`)
-- **Services**: Supporting services (`rivermax::dev_kit::services`)
-- **Core**: Essential C++ Rivermax components and interfaces (`rivermax::dev_kit::core`)
+- **Apps**: Application-level functionality (`rdk::apps`)
+- **IO Node**: Input/output management (`rdk::io_node`)
+- **Services**: Supporting services (`rdk::services`)
+- **Core**: Essential C++ Rivermax components and interfaces (`rdk::core`)
 
-All modules are contained within the main `rivermax` namespace, which contains the `dev_kit` namespace.
+All modules are contained within the `rdk` namespace.
 
 ### API Usage
 
@@ -286,6 +286,8 @@ In addition to being available as CLI interfaces, these applications are also ac
 - **[`rdk_generic_sender`](source/apps/generic_sender)**: A generic sender application for transmitting custom UDPv4 data streams using Rivermax. Supports configurable rate limiting, packet sizes, and transmission parameters for both unicast and multicast flows.
 
 - **[`rdk_media_sender`](source/apps/media_sender)**: A media sender application for streaming media content over IP networks. Supports industry-standard SMPTE 2110-20 (video), SMPTE 2110-30 (audio), and SMPTE 2110-40 (ancillary data) formats for professional media streaming workflows.
+
+- **[`rdk_media_receiver`](source/apps/media_receiver)**: A media receiver application for receiving media streams over IP networks. Supports industry-standard SMPTE 2110-20 (video), SMPTE 2110-30 (audio), and SMPTE 2110-40 (ancillary data) formats for professional media streaming workflows.
 
 - **[`rdk_rtp_receiver`](source/apps/rtp_receiver)**: A Real-time Transport Protocol (RTP) receiver application for receiving and processing RTP streams. Supports both standard and extended RTP sequence numbers for flexible packet handling.
 

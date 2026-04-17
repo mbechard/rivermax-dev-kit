@@ -1,6 +1,6 @@
 /*
  * SPDX-FileCopyrightText: NVIDIA CORPORATION & AFFILIATES
- * Copyright (c) 2025 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+ * Copyright (c) 2025-2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
  * SPDX-License-Identifier: Apache-2.0
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -31,9 +31,7 @@
 #include "rdk/services/protocol/rtp.h"
 #include "rdk/services/media/media_defs.h"
 
-namespace rivermax
-{
-namespace dev_kit
+namespace rdk
 {
 namespace services
 {
@@ -43,7 +41,7 @@ namespace services
  * Parses RTP headers. Validates RTP version and CSRC limits.
  * @note: Handles basic RTP headers only.
  */
-class RTPParser : public TypedProtocolParser<RTPHeader>
+class RTPParser : public TypedProtocolParser<protocol::RTPHeader>
 {
 public:
     size_t get_header_size(const byte_t* data) const override
@@ -52,7 +50,7 @@ public:
             return RTP_HEADER_SIZE;
         }
 
-        const RTPHeader* rtp_header = get_typed_header(data);
+        const protocol::RTPHeader* rtp_header = get_typed_header(data);
         uint8_t csrc_count = rtp_header->vpxcc & 0x0F;
         size_t header_size = RTP_HEADER_SIZE + (csrc_count * RTP_HEADER_CSRC_GRANULARITY_BYTES);
 
@@ -76,7 +74,7 @@ public:
             return false;
         }
 
-        const RTPHeader* rtp_header = get_typed_header(data);
+        const protocol::RTPHeader* rtp_header = get_typed_header(data);
 
         uint8_t version = (rtp_header->vpxcc & RTP_VERSION_MASK);
         if (version != RTP_VERSION_2) {
@@ -113,7 +111,6 @@ public:
 };
 
 } // namespace services
-} // namespace dev_kit
-} // namespace rivermax
+} // namespace rdk
 
 #endif // RDK_SERVICES_PROTOCOL_RTP_PARSER_H_

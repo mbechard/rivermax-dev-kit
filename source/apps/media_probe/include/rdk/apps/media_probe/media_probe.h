@@ -25,13 +25,9 @@
 #include "rdk/apps/media_probe/stream_monitor.h"
 #include "rdk/apps/media_probe/media_monitor.h"
 
-namespace rivermax
-{
-namespace dev_kit
+namespace rdk
 {
 namespace apps
-{
-namespace media_probe
 {
 
 /**
@@ -200,9 +196,7 @@ private:
     static constexpr size_t RECEIVE_CHUNK_SIZE_LIMIT = 1024;
 };
 
-} // namespace media_probe
 } // namespace apps
-} // namespace dev_kit
-} // namespace rivermax
+} // namespace rdk
 
 #endif /* RDK_APPS_MEDIA_PROBE_MEDIA_PROBE_H_ */

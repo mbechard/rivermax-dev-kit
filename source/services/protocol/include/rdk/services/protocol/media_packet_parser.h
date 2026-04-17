@@ -1,6 +1,6 @@
 /*
  * SPDX-FileCopyrightText: NVIDIA CORPORATION & AFFILIATES
- * Copyright (c) 2025 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+ * Copyright (c) 2025-2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
  * SPDX-License-Identifier: Apache-2.0
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -32,9 +32,7 @@
 #include "rdk/services/protocol/udp_parser.h"
 #include "rdk/services/protocol/rtp_parser.h"
 
-namespace rivermax
-{
-namespace dev_kit
+namespace rdk
 {
 namespace services
 {
@@ -109,7 +107,7 @@ public:
      * @param [in] data: Packet data buffer.
      * @return: Pointer to RTP header, or nullptr if not present.
      */
-    const RTPHeader* rtp(const byte_t* data) const noexcept
+    const protocol::RTPHeader* rtp(const byte_t* data) const noexcept
     {
         return m_rtp_accessor(data);
     }
@@ -147,7 +145,7 @@ private:
     std::function<const EthernetHeader*(const byte_t*)> m_ethernet_accessor;
     std::function<const IPv4Header*(const byte_t*)> m_ipv4_accessor;
     std::function<const UDPHeader*(const byte_t*)> m_udp_accessor;
-    std::function<const RTPHeader*(const byte_t*)> m_rtp_accessor;
+    std::function<const protocol::RTPHeader*(const byte_t*)> m_rtp_accessor;
 
     /**
      * @brief: Extract extended sequence number from RTP header.
@@ -157,7 +155,7 @@ private:
      * @param [in] length: Packet length.
      * @return: Extended sequence number.
      */
-    uint16_t get_extended_sequence_number_from_rtp(const RTPHeader* rtp_header, const byte_t* data, size_t length) const;
+    uint16_t get_extended_sequence_number_from_rtp(const protocol::RTPHeader* rtp_header, const byte_t* data, size_t length) const;
 
     /**
      * @brief: Setup pre-bound accessor functions (simplified and optimized).
@@ -177,14 +175,14 @@ private:
         m_udp_accessor = [null_parser](const byte_t* data) -> const UDPHeader* { 
             return static_cast<const UDPHeader*>(null_parser(data)); 
         };
-        m_rtp_accessor = [null_parser](const byte_t* data) -> const RTPHeader* { 
-            return static_cast<const RTPHeader*>(null_parser(data)); 
+        m_rtp_accessor = [null_parser](const byte_t* data) -> const protocol::RTPHeader* { 
+            return static_cast<const protocol::RTPHeader*>(null_parser(data)); 
         };
 
         setup_accessor_if_present<EthernetHeader>(m_ethernet_accessor);
         setup_accessor_if_present<IPv4Header>(m_ipv4_accessor);
         setup_accessor_if_present<UDPHeader>(m_udp_accessor);
-        setup_accessor_if_present<RTPHeader>(m_rtp_accessor);
+        setup_accessor_if_present<protocol::RTPHeader>(m_rtp_accessor);
     }
 
     /**
@@ -205,7 +203,6 @@ private:
 };
 
 } // namespace services
-} // namespace dev_kit
-} // namespace rivermax
+} // namespace rdk
 
 #endif // RDK_SERVICES_PROTOCOL_MEDIA_PACKET_PARSER_H_

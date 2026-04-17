@@ -31,9 +31,7 @@
 #include "rdk/services/sdp/sdp_defs.h"
 #include "rdk/services/utils/rational.h"
 
-namespace rivermax
-{
-namespace dev_kit
+namespace rdk
 {
 namespace services
 {
@@ -128,8 +126,7 @@ struct MediaSettings
     size_t app_header_stride_size = 0;
 };
 
-}  // namespace services
-}  // namespace dev_kit
-}  // namespace rivermax
+} // namespace services
+} // namespace rdk
 
 #endif /* RDK_SERVICES_MEDIA_MEDIA_SETTINGS_H_ */

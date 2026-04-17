@@ -21,17 +21,13 @@
 
 #include "rdk/apps/base_app.h"
 
-using namespace rivermax::dev_kit::io_node;
-using namespace rivermax::dev_kit::services;
-using namespace rivermax::dev_kit::core;
+using namespace rdk::io_node;
+using namespace rdk::services;
+using namespace rdk::core;
 
-namespace rivermax
-{
-namespace dev_kit
+namespace rdk
 {
 namespace apps
-{
-namespace latency
 {
 /**
 * @brief: Latency measurement mode.
@@ -256,9 +252,7 @@ private:
     static uint64_t get_time_ns(void* context = nullptr);
 };
 
-} // namespace latency
 } // namespace apps
-} // namespace dev_kit
-} // namespace rivermax
+} // namespace rdk
 
 #endif /* RDK_APPS_LATENCY_LATENCY_H_ */

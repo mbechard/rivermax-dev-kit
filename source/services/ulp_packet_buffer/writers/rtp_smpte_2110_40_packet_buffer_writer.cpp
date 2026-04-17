@@ -21,8 +21,9 @@
 #include <cstring>
 
 #include "rdk/services/ulp_packet_buffer/writers/rtp_smpte_2110_40_packet_buffer_writer.h"
+#include "rdk/services/ulp_packet/smpte_2110_40_ancillary_utils.h"
 
-using namespace rivermax::dev_kit::services;
+using namespace rdk::services;
 
 RTP_SMPTE_2110_40_PacketBufferWriter::RTP_SMPTE_2110_40_PacketBufferWriter(const MediaSettings& media_settings,
     std::shared_ptr<MemoryUtils> header_mem_utils, std::shared_ptr<MemoryUtils> payload_mem_utils, bool enable_zero_copy)
@@ -83,7 +84,7 @@ void RTP_SMPTE_2110_40_PacketBufferWriter::prepare_context_for_packet()
         m_rtp_packet_context->descriptor_count_in_packet = calculate_descriptors_in_packet(
             *m_descriptors,
             m_current_descriptor_index,
-            m_media_settings.packet_payload_size,
+            m_media_settings.raw_packet_payload_size,
             ancillary_settings.max_ancillary_data_packets_per_packet);
     } else {
         m_rtp_packet_context->descriptor_count_in_packet = 0;
@@ -107,7 +108,7 @@ size_t RTP_SMPTE_2110_40_PacketBufferWriter::calculate_descriptors_in_packet(
     size_t descriptor_count = 0;
 
     for (size_t i = start_index; i < descriptors.size(); ++i) {
-        uint16_t ancillary_data_packet_size = AncillaryDataPacketWriter::calculate_packet_size(
+        const size_t ancillary_data_packet_size = AncillaryDataUtils::calculate_packet_size(
             descriptors[i].ancillary_data_header.user_data_words_count);
 
         // Make sure it doesn't exceed the max number of ancillary data packets per RTP packet
@@ -159,7 +160,7 @@ size_t RTP_SMPTE_2110_40_PacketBufferWriter::calculate_packets_for_media_unit() 
         const auto& ancillary_settings = static_cast<const SMPTE_2110_40_MediaSettings&>(m_media_settings);
         data_packets_needed = calculate_rtp_packets_for_descriptors(
             *m_descriptors,
-            m_media_settings.packet_payload_size,
+            m_media_settings.raw_packet_payload_size,
             ancillary_settings.max_ancillary_data_packets_per_packet);
     }
 
@@ -274,7 +275,7 @@ size_t RTP_SMPTE_2110_40_PacketBufferWriter::get_num_packets_for_next_chunk() co
     const auto& ancillary_settings = static_cast<const SMPTE_2110_40_MediaSettings&>(m_media_settings);
     size_t packets_for_remaining_descriptors = calculate_rtp_packets_for_descriptors(
         remaining_descriptors,
-        m_media_settings.packet_payload_size,
+        m_media_settings.raw_packet_payload_size,
         ancillary_settings.max_ancillary_data_packets_per_packet);
 
     // Also check how many packets remain in the media unit (accounts for empty marker packets)

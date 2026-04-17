@@ -1,6 +1,6 @@
 /*
  * SPDX-FileCopyrightText: NVIDIA CORPORATION & AFFILIATES
- * Copyright (c) 2025 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+ * Copyright (c) 2025-2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
  * SPDX-License-Identifier: Apache-2.0
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -22,9 +22,7 @@
 #include "rdk/services/ulp_packet/rtp_packet_context.h"
 #include "rdk/services/media/ancillary_metadata.h"
 
-namespace rivermax
-{
-namespace dev_kit
+namespace rdk
 {
 namespace services
 {
@@ -46,15 +44,14 @@ struct RTP_SMPTE_2110_40_PacketContext : public RTPPacketContext
     uint16_t length = 0;                                                /**< Number of octets of the ANC data RTP payload */
     uint32_t ancillary_count = 0;                                       /**< Number of ancillary data packets */
     uint8_t field_indicator = RTP_2110_40_FIELD_INDICATOR_PROGRESSIVE;  /**< Field indicator */
-    size_t descriptor_start_index = 0;                                  /**< Index of first descriptor to pack in this RTP packet */
-    size_t descriptor_count_in_packet = 0;                              /**< Number of descriptors to pack in this RTP packet */
+    size_t descriptor_start_index = 0;                                  /**< Index of first descriptor in this RTP packet */
+    size_t descriptor_count_in_packet = 0;                              /**< Number of descriptors in this RTP packet */
 
-    /** Pointer to ancillary descriptors */
-    const std::vector<AncillaryDataDescriptor>* descriptors = nullptr;
+    /** Pointer to ancillary descriptors: writer reads from it, reader appends to it */
+    std::vector<AncillaryDataDescriptor>* descriptors = nullptr;
 };
 
 } // namespace services
-} // namespace dev_kit
-} // namespace rivermax
+} // namespace rdk
 
 #endif /* RDK_SERVICES_ULP_PACKET_RTP_SMPTE_2110_40_PACKET_CONTEXT_H_ */

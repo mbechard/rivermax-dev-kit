@@ -1,6 +1,6 @@
 /*
  * SPDX-FileCopyrightText: NVIDIA CORPORATION & AFFILIATES
- * Copyright (c) 2025 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+ * Copyright (c) 2025-2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
  * SPDX-License-Identifier: Apache-2.0
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -34,12 +34,10 @@
 #include "rdk/core/flow/receive_flow.h"
 #include "rdk/services/protocol/media_packet_parser.h"
 
-using namespace rivermax::dev_kit::services;
-using namespace rivermax::dev_kit::core;
+using namespace rdk::services;
+using namespace rdk::core;
 
-namespace rivermax
-{
-namespace dev_kit
+namespace rdk
 {
 namespace io_node
 {
@@ -163,12 +161,16 @@ public:
      * @param [in] index: Receiver index.
      * @param [in] cpu_core_affinity: CPU core affinity the sender will run on.
      * @param [in] memory_utils: Memory utilities.
+     * @param [in] process_headers: Enable RTP header processing in streams.
+     *             Pass false when an injected @ref IReceiveDataConsumer
+     *             handles header parsing, to avoid redundant double-parsing.
      */
     RTPReceiverIONode(const AppSettings& app_settings,
         bool is_extended_sequence_number,
         const std::vector<std::string>& devices,
         size_t index, int cpu_core_affinity,
-        IONodeMemoryUtils& memory_utils);
+        IONodeMemoryUtils& memory_utils,
+        bool process_headers = true);
     virtual ~RTPReceiverIONode() = default;
 
     /**
@@ -191,6 +193,7 @@ public:
 protected:
     std::vector<std::string> m_devices;
     bool m_is_extended_sequence_number;
+    bool m_process_headers;
 
     ReturnStatus attach_flows() override { return process_flows(true); }
     ReturnStatus detach_flows() override { return process_flows(false); }
@@ -221,8 +224,7 @@ private:
     }
 };
 
-} // io_node
-} // dev_kit
-} // rivermax
+} // namespace io_node
+} // namespace rdk
 
 #endif /* RDK_IO_NODE_RECEIVERS_RTP_RECEIVER_IO_NODE_H_ */

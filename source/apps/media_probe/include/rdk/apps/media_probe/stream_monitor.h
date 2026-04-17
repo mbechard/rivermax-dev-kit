@@ -1,6 +1,6 @@
 /*
  * SPDX-FileCopyrightText: NVIDIA CORPORATION & AFFILIATES
- * Copyright (c) 2025 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+ * Copyright (c) 2025-2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
  * SPDX-License-Identifier: Apache-2.0
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -30,15 +30,11 @@
 #include "rdk/services/protocol/media_packet_parser.h"
 #include "rdk/core/data_handler/receive_data_consumer_interface.h"
 
-using namespace rivermax::dev_kit::core;
+using namespace rdk::core;
 
-namespace rivermax
-{
-namespace dev_kit
+namespace rdk
 {
 namespace apps
-{
-namespace media_probe
 {
 
 /**
@@ -253,9 +249,7 @@ protected:
     StreamMonitor& m_stream_monitor;
 };
 
-} // namespace media_probe
 } // namespace apps
-} // namespace dev_kit
-} // namespace rivermax
+} // namespace rdk
 
 #endif /* RDK_APPS_MEDIA_PROBE_STREAM_MONITOR_H_ */
