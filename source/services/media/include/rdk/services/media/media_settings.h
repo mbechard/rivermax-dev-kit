@@ -23,7 +23,6 @@
 #include <memory>
 #include <string>
 #include <vector>
-#include <functional>
 
 #include "rdk/services/media/media_calc_interface.h"
 #include "rdk/services/media/media_defs.h"
@@ -35,8 +34,6 @@ namespace rdk
 {
 namespace services
 {
-class IMediaEssenceSource;
-
 /**
  * @brief: Media settings.
  *
