@@ -72,12 +72,17 @@ ReturnStatus MediaSenderSettingsValidator::validate(const MediaSenderSettings& s
                   << " local IP addresses are supported" << std::endl;
         return ReturnStatus::failure;
     }
-    if (settings.destination_ips.size() != settings.local_ips.size()) {
-        std::cerr << "Must be the same number of destination IPs as number of local IPs" << std::endl;
+    size_t num_essences = 0;
+    if (settings.media.enable_video)     { ++num_essences; }
+    if (settings.media.enable_audio)     { ++num_essences; }
+    if (settings.media.enable_ancillary) { ++num_essences; }
+    const size_t expected = num_essences * settings.local_ips.size();
+    if (num_essences > 0 && settings.destination_ips.size() != expected) {
+        std::cerr << "Must provide one destination IP per enabled essence per local IP" << std::endl;
         return ReturnStatus::failure;
     }
-    if (settings.destination_ports.size() != settings.local_ips.size()) {
-        std::cerr << "Must be the same number of destination ports as number of local IPs" << std::endl;
+    if (num_essences > 0 && settings.destination_ports.size() != expected) {
+        std::cerr << "Must provide one destination port per enabled essence per local IP" << std::endl;
         return ReturnStatus::failure;
     }
     ReturnStatus rc = ValidatorUtils::validate_ip4_address(settings.local_ips);
@@ -354,37 +359,43 @@ ReturnStatus MediaSenderApp::set_rivermax_clock()
 void MediaSenderApp::configure_network_flows()
 {
     m_num_paths_per_stream = m_app_settings->local_ips.size();
-    m_flows.reserve(m_app_settings->num_of_total_flows * m_num_paths_per_stream);
 
-    std::vector<std::string> ip_prefix_str;
-    std::vector<uint8_t> ip_last_octet;
-    for (const auto& dst_ip : m_app_settings->destination_ips) {
-        auto ip_vec = CLI::detail::split(dst_ip, '.');
-        ip_prefix_str.push_back(std::string(ip_vec[0] + "." + ip_vec[1] + "." + ip_vec[2] + "."));
-        ip_last_octet.push_back(static_cast<uint8_t>(std::stoi(ip_vec[3])));
+    const auto& dst_ips   = m_app_settings->destination_ips;
+    const auto& dst_ports = m_app_settings->destination_ports;
+    const size_t num_nodes = m_media_sender_settings->smpte_standard_to_nodes.size();
+
+    if (dst_ips.size()   != num_nodes * m_num_paths_per_stream ||
+        dst_ports.size() != num_nodes * m_num_paths_per_stream) {
+        throw std::runtime_error(
+            "Provide one (destination IP, port) per enabled SMPTE standard "
+            "(and per redundancy path).");
     }
-
-    size_t flow_index = 0;
-    std::ostringstream ip;
-    uint16_t port;
 
     size_t total_num_of_flows = 0;
     for (const auto& node : m_media_sender_settings->smpte_standard_to_nodes) {
         total_num_of_flows += node.second;
     }
-    m_flows.reserve(total_num_of_flows);
+    m_flows.reserve(total_num_of_flows * m_num_paths_per_stream);
+
+    size_t flow_index = 0;
+    size_t node_idx   = 0;
+    std::ostringstream ip;
 
     for (const auto& node : m_media_sender_settings->smpte_standard_to_nodes) {
-        auto& num_of_streams = node.second;
-        for (size_t stream_index = 0; stream_index < num_of_streams; stream_index++) {
-            for (size_t path_index = 0; path_index < m_num_paths_per_stream; path_index++) {
-                ip << ip_prefix_str[path_index] << (ip_last_octet[path_index] + flow_index) % IP_OCTET_LEN;
-                port = m_app_settings->destination_ports[path_index];
-                m_flows.push_back(FourTupleFlow(flow_index, m_app_settings->local_ips[path_index], m_app_settings->source_port, ip.str(), port));
+        const size_t num_of_streams = node.second;
+        for (size_t stream_index = 0; stream_index < num_of_streams; ++stream_index) {
+            for (size_t path_index = 0; path_index < m_num_paths_per_stream; ++path_index) {
+                const size_t cfg_idx = node_idx * m_num_paths_per_stream + path_index;
+                auto ip_vec = CLI::detail::split(dst_ips[cfg_idx], '.');
+                ip << ip_vec[0] << '.' << ip_vec[1] << '.' << ip_vec[2] << '.'
+                   << (std::stoi(ip_vec[3]) + stream_index) % IP_OCTET_LEN;
+                m_flows.emplace_back(flow_index, m_app_settings->local_ips[path_index],
+                    m_app_settings->source_port, ip.str(), dst_ports[cfg_idx]);
                 ip.str("");
             }
-            flow_index++;
+            ++flow_index;
         }
+        ++node_idx;
     }
 }
 
