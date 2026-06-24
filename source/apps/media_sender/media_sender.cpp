@@ -74,15 +74,21 @@ ReturnStatus MediaSenderSettingsValidator::validate(const MediaSenderSettings& s
     }
     size_t num_essences = 0;
     if (settings.media.enable_video)     { ++num_essences; }
+    if (settings.media.enable_alpha)     { ++num_essences; }
     if (settings.media.enable_audio)     { ++num_essences; }
     if (settings.media.enable_ancillary) { ++num_essences; }
-    const size_t expected = num_essences * settings.local_ips.size();
-    if (num_essences > 0 && settings.destination_ips.size() != expected) {
-        std::cerr << "Must provide one destination IP per enabled essence per local IP" << std::endl;
-        return ReturnStatus::failure;
-    }
-    if (num_essences > 0 && settings.destination_ports.size() != expected) {
-        std::cerr << "Must provide one destination port per enabled essence per local IP" << std::endl;
+    const size_t per_path = settings.local_ips.size();
+    const size_t per_essence = num_essences * per_path;
+    const bool legacy_destinations =
+        settings.destination_ips.size() == per_path &&
+        settings.destination_ports.size() == per_path;
+    const bool per_essence_destinations =
+        (num_essences > 0) &&
+        settings.destination_ips.size() == per_essence &&
+        settings.destination_ports.size() == per_essence;
+    if (!legacy_destinations && !per_essence_destinations) {
+        std::cerr << "Must provide either one destination IP/port per local IP, "
+                  << "or one destination IP/port per enabled essence per local IP" << std::endl;
         return ReturnStatus::failure;
     }
     ReturnStatus rc = ValidatorUtils::validate_ip4_address(settings.local_ips);
@@ -359,16 +365,27 @@ ReturnStatus MediaSenderApp::set_rivermax_clock()
 void MediaSenderApp::configure_network_flows()
 {
     m_num_paths_per_stream = m_app_settings->local_ips.size();
-
     const auto& dst_ips   = m_app_settings->destination_ips;
     const auto& dst_ports = m_app_settings->destination_ports;
-    const size_t num_nodes = m_media_sender_settings->smpte_standard_to_nodes.size();
+    size_t num_essences = 0;
+    if (m_app_settings->media.enable_video)     { ++num_essences; }
+    if (m_app_settings->media.enable_alpha)     { ++num_essences; }
+    if (m_app_settings->media.enable_audio)     { ++num_essences; }
+    if (m_app_settings->media.enable_ancillary) { ++num_essences; }
 
-    if (dst_ips.size()   != num_nodes * m_num_paths_per_stream ||
-        dst_ports.size() != num_nodes * m_num_paths_per_stream) {
+    const size_t per_path = m_num_paths_per_stream;
+    const size_t per_essence = num_essences * per_path;
+    const bool legacy_destinations =
+        dst_ips.size() == per_path &&
+        dst_ports.size() == per_path;
+    const bool per_essence_destinations =
+        (num_essences > 0) &&
+        dst_ips.size() == per_essence &&
+        dst_ports.size() == per_essence;
+    if (!legacy_destinations && !per_essence_destinations) {
         throw std::runtime_error(
-            "Provide one (destination IP, port) per enabled SMPTE standard "
-            "(and per redundancy path).");
+            "Provide either one (destination IP, port) per local IP, "
+            "or one per enabled SMPTE standard (and per redundancy path).");
     }
 
     size_t total_num_of_flows = 0;
@@ -378,24 +395,39 @@ void MediaSenderApp::configure_network_flows()
     m_flows.reserve(total_num_of_flows * m_num_paths_per_stream);
 
     size_t flow_index = 0;
-    size_t node_idx   = 0;
+    size_t node_index = 0;
+    size_t current_essence_index = 0;
+    size_t essence_stream_index = 0;
     std::ostringstream ip;
 
     for (const auto& node : m_media_sender_settings->smpte_standard_to_nodes) {
+        const size_t node_essence_index = node_index / m_app_settings->num_of_threads;
+        if (node_essence_index >= num_essences) {
+            throw std::runtime_error("Internal error: essence index out of range");
+        }
+        if (node_index == 0 || node_essence_index != current_essence_index) {
+            current_essence_index = node_essence_index;
+            essence_stream_index = 0;
+        }
+
         const size_t num_of_streams = node.second;
         for (size_t stream_index = 0; stream_index < num_of_streams; ++stream_index) {
-            for (size_t path_index = 0; path_index < m_num_paths_per_stream; ++path_index) {
-                const size_t cfg_idx = node_idx * m_num_paths_per_stream + path_index;
+            for (size_t path_index = 0; path_index < m_num_paths_per_stream; path_index++) {
+                const size_t cfg_idx = per_essence_destinations ?
+                    current_essence_index * m_num_paths_per_stream + path_index :
+                    path_index;
                 auto ip_vec = CLI::detail::split(dst_ips[cfg_idx], '.');
+                const size_t ip_offset = per_essence_destinations ? essence_stream_index : flow_index;
                 ip << ip_vec[0] << '.' << ip_vec[1] << '.' << ip_vec[2] << '.'
-                   << (std::stoi(ip_vec[3]) + stream_index) % IP_OCTET_LEN;
+                   << (std::stoi(ip_vec[3]) + ip_offset) % IP_OCTET_LEN;
                 m_flows.emplace_back(flow_index, m_app_settings->local_ips[path_index],
                     m_app_settings->source_port, ip.str(), dst_ports[cfg_idx]);
                 ip.str("");
             }
             ++flow_index;
+            ++essence_stream_index;
         }
-        ++node_idx;
+        ++node_index;
     }
 }
 
@@ -574,20 +606,41 @@ ReturnStatus MediaSenderApp::set_media_essence_sources(
     size_t sender_thread_index = 0;
     size_t sender_stream_index = 0;
 
+    size_t essence_index = 0;
+    bool essence_enabled = false;
+    for (const auto& enabled_standard : m_media_sender_settings->enabled_smpte_standards) {
+        if (enabled_standard == smpte_standard) {
+            essence_enabled = true;
+            break;
+        }
+        ++essence_index;
+    }
+    if (!essence_enabled) {
+        std::cerr << "Error setting media essence source, SMPTE standard "
+                  << static_cast<int>(smpte_standard) << " is not enabled" << std::endl;
+        return ReturnStatus::failure;
+    }
+
     auto rc = find_internal_stream_index(stream_index, sender_thread_index, sender_stream_index);
     if (rc != ReturnStatus::success) {
         std::cerr << "Error setting media essence source, invalid stream index " << stream_index << std::endl;
         return rc;
     }
 
-    rc = m_senders[sender_thread_index]->set_media_essence_sources(
+    const size_t sender_index = essence_index * m_app_settings->num_of_threads + sender_thread_index;
+    if (sender_index >= m_senders.size()) {
+        std::cerr << "Error setting media essence source, invalid sender index " << sender_index << std::endl;
+        return ReturnStatus::failure;
+    }
+
+    rc = m_senders[sender_index]->set_media_essence_sources(
         sender_stream_index, smpte_standard,
         std::move(preload_essence_source), std::move(runtime_essence_source),
         runtime_contains_payload);
 
     if (rc != ReturnStatus::success) {
         std::cerr << "Error setting media essence source for stream "
-                  << sender_stream_index << " on sender " << sender_thread_index << std::endl;
+                  << sender_stream_index << " on sender " << sender_index << std::endl;
     }
 
     return rc;
