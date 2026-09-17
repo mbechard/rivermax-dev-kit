@@ -41,7 +41,6 @@ if (MSVC)
         /W4
         /WX
         /fp:fast
-        /GL
     )
     target_compile_options(rivermax-dev-kit-build INTERFACE $<$<COMPILE_LANGUAGE:C,CXX>:${RDK_C_CXX_FLAGS}>)
     target_link_options(rivermax-dev-kit-build INTERFACE /LTCG)
